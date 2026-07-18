@@ -23,26 +23,37 @@
 
 ## Description
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+NestJS API for Expentra — internal expense management (PostgreSQL, Redis, JWT).
+
+Run all commands from this directory. The React frontend lives in the sibling [`../expentra-web`](../expentra-web) project.
+
+**API docs:** [POST endpoint payload samples](./docs/api-post-payloads.md) — request body examples for every `POST` route.
 
 ## Project setup
 
 ```bash
-$ pnpm install
+pnpm install
 ```
 
 ## Compile and run the project
 
-```bash
-# development
-$ pnpm run start
+The HTTP API and BullMQ worker are **separate processes** (same codebase and Docker image).
 
-# watch mode
+```bash
+# API — development (watch)
 $ pnpm run start:dev
 
-# production mode
-$ pnpm run start:prod
+# Worker — development (watch); required for background jobs
+$ pnpm run start:worker:dev
+
+# API — production build output
+$ pnpm run start
+
+# Worker — production build output
+$ pnpm run start:worker
 ```
+
+With Docker Compose, start both `api` and `worker` services. The worker uses `command: node dist/worker.js` and `RUN_MIGRATIONS=false`.
 
 ## Run tests
 
@@ -56,6 +67,18 @@ $ pnpm run test:e2e
 # test coverage
 $ pnpm run test:cov
 ```
+
+## Branch strategy
+
+Aligned with the sibling [`expentra-web`](../expentra-web) frontend:
+
+| Branch | Purpose |
+|--------|---------|
+| `feature/*` | Feature work — no long-lived deploy |
+| `develop` | Integration / development |
+| `main` | Production |
+
+Merge path: feature branch → `develop` (PR) → `main` (PR) when promoting to production.
 
 ## Deployment
 
