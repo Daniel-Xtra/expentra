@@ -1,0 +1,42 @@
+groups:
+  - name: expentra-api
+    rules:
+      - alert: ExpentraApiDown
+        expr: up{job="expentra-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: Expentra API is down
+          description: Prometheus cannot scrape expentra-api for more than 1 minute.
+
+      - alert: ExpentraHigh5xxRate
+        expr: |
+          sum(rate(expentra_http_requests_total{status_code=~"5.."}[5m]))
+            /
+          clamp_min(sum(rate(expentra_http_requests_total[5m])), 0.001)
+            > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: High API 5xx rate
+          description: More than 5% of requests are returning 5xx over the last 5 minutes.
+
+      - alert: ExpentraEmailQueueBackingUp
+        expr: expentra_queue_jobs{queue="email-notifications",state="waiting"} > 50
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Email notification queue is backing up
+          description: More than 50 waiting email jobs for 10 minutes.
+
+      - alert: ExpentraEmailQueueFailures
+        expr: expentra_queue_jobs{queue="email-notifications",state="failed"} > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Email notification jobs are failing
+          description: Failed email jobs detected in BullMQ.
