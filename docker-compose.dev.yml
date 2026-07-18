@@ -1,0 +1,77 @@
+services:
+  api:
+    container_name: expentra-api
+
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: deps
+
+    working_dir: /app
+
+    command: pnpm run start:dev
+
+    env_file:
+      - .env.development
+
+    ports:
+      - "3200:3200"
+
+    volumes:
+      - .:/app
+      - /app/node_modules
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+      redis:
+        condition: service_healthy
+
+    restart: unless-stopped
+
+    networks:
+      - backend
+
+  worker:
+    container_name: expentra-worker
+
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: deps
+
+    working_dir: /app
+
+    command: pnpm run start:worker:dev
+
+    env_file:
+      - .env.development
+
+    environment:
+      RUN_MIGRATIONS: "false"
+      RUN_SEED: "false"
+
+    volumes:
+      - .:/app
+      - /app/node_modules
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+      redis:
+        condition: service_healthy
+
+    restart: unless-stopped
+
+    networks:
+      - backend
+
+  postgres:
+    ports:
+      - "5432:5432"
+
+  redis:
+    ports:
+      - "6379:6379"
