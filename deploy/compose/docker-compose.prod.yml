@@ -29,7 +29,6 @@ services:
       APP_ROLE: api
       RUN_MIGRATIONS: "false"
       RUN_SEED: "false"
-      POSTGRES_HOST: postgres
     expose:
       - "3200"
     depends_on:
@@ -64,7 +63,6 @@ services:
       APP_ROLE: migrate
       RUN_MIGRATIONS: "true"
       RUN_SEED: "false"
-      POSTGRES_HOST: postgres
     entrypoint: ["/usr/bin/tini", "--", "sh", "/app/scripts/docker-migrate.sh"]
     depends_on:
       postgres:
@@ -86,7 +84,6 @@ services:
       APP_ROLE: worker
       RUN_MIGRATIONS: "false"
       RUN_SEED: "false"
-      POSTGRES_HOST: postgres
     depends_on:
       postgres:
         condition: service_healthy
