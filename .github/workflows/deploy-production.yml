@@ -1,0 +1,234 @@
+name: Deploy Production
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  COMPOSE_OVERRIDE: docker-compose.prod.yml
+  ENV_FILE: .env.production
+  HEALTH_READY_URL: http://127.0.0.1:3200/api/health/ready
+
+jobs:
+  build-and-push:
+    name: Build and push image
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 30
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Image name (immutable SHA tag)
+        id: meta
+        env:
+          IMAGE_REPOSITORY: ${{ secrets.DOCKERHUB_IMAGE }}
+        run: |
+          if [ -z "${IMAGE_REPOSITORY}" ]; then
+            echo "::error::Missing environment secret DOCKERHUB_IMAGE (e.g. youruser/expentra)"
+            exit 1
+          fi
+          echo "image=${IMAGE_REPOSITORY}:sha-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          echo "image_base=${IMAGE_REPOSITORY}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.image }}
+            ${{ steps.meta.outputs.image_base }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to VPS
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Decode ENV_FILE_B64 and set IMAGE_NAME
+        env:
+          ENV_FILE_B64: ${{ secrets.ENV_FILE_B64 }}
+          IMAGE_NAME: ${{ needs.build-and-push.outputs.image }}
+        run: |
+          if [ -z "${ENV_FILE_B64}" ]; then
+            echo "::error::Missing environment secret ENV_FILE_B64 (base64-encoded .env file)"
+            exit 1
+          fi
+          printf '%s' "${ENV_FILE_B64}" | base64 -d > /tmp/expentra.env
+          grep -qE '^[A-Za-z_][A-Za-z0-9_]*=' /tmp/expentra.env
+          if grep -qE '^IMAGE_NAME=' /tmp/expentra.env; then
+            sed -i "s|^IMAGE_NAME=.*|IMAGE_NAME=${IMAGE_NAME}|" /tmp/expentra.env
+          else
+            printf '\nIMAGE_NAME=%s\n' "${IMAGE_NAME}" >> /tmp/expentra.env
+          fi
+
+      - name: Start SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.VPS_SSH_KEY }}
+
+      - name: Configure pinned known_hosts
+        env:
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          if [ -z "${VPS_KNOWN_HOSTS}" ]; then
+            echo "::error::Missing environment secret VPS_KNOWN_HOSTS (pinned ssh-keyscan output)"
+            exit 1
+          fi
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "${VPS_KNOWN_HOSTS}" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+          printf '%s\n' \
+            'Host *' \
+            '  StrictHostKeyChecking yes' \
+            '  UserKnownHostsFile ~/.ssh/known_hosts' \
+            > ~/.ssh/config
+          chmod 600 ~/.ssh/config
+
+      - name: Capture previous IMAGE_NAME for rollback
+        id: previous
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+        run: |
+          PREV="$(ssh "${VPS_USER}@${VPS_HOST}" \
+            "grep -E '^IMAGE_NAME=' '/opt/expentra/env/${ENV_FILE}' 2>/dev/null | cut -d= -f2- || true")"
+          echo "image=${PREV}" >> "$GITHUB_OUTPUT"
+          echo "Previous IMAGE_NAME=${PREV:-<none>}"
+
+      - name: Sync deploy files and env to VPS
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+        run: |
+          ssh "${VPS_USER}@${VPS_HOST}" "mkdir -p '/opt/expentra-production/compose' '/opt/expentra-production/env' '/opt/expentra-production/scripts'"
+          rsync -az --delete \
+            deploy/compose/ \
+            "${VPS_USER}@${VPS_HOST}:/opt/expentra-production/compose/"
+          rsync -az --delete \
+            deploy/scripts/ \
+            "${VPS_USER}@${VPS_HOST}:/opt/expentra-production/scripts/"
+          scp /tmp/expentra.env "${VPS_USER}@${VPS_HOST}:/opt/expentra-production/env/${ENV_FILE}"
+          ssh "${VPS_USER}@${VPS_HOST}" \
+            "chmod 600 '/opt/expentra-production/env/${ENV_FILE}' && rm -f '/opt/expentra-production/compose/.env'"
+
+      - name: Pull, migrate, restart, verify health (rollback on failure)
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          PREVIOUS_IMAGE: ${{ steps.previous.outputs.image }}
+          NEW_IMAGE: ${{ needs.build-and-push.outputs.image }}
+        run: |
+          ssh "${VPS_USER}@${VPS_HOST}" \
+            COMPOSE_OVERRIDE="$COMPOSE_OVERRIDE" \
+            ENV_FILE="$ENV_FILE" \
+            HEALTH_READY_URL="$HEALTH_READY_URL" \
+            DOCKERHUB_USERNAME="$DOCKERHUB_USERNAME" \
+            DOCKERHUB_TOKEN="$DOCKERHUB_TOKEN" \
+            PREVIOUS_IMAGE="$PREVIOUS_IMAGE" \
+            NEW_IMAGE="$NEW_IMAGE" \
+            'bash -s' <<'REMOTE'
+          set -euo pipefail
+
+          echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+          cd /opt/expentra/compose
+          ENV_PATH="../env/${ENV_FILE}"
+          COMPOSE=(docker compose --env-file "${ENV_PATH}" -f docker-compose.yml -f "${COMPOSE_OVERRIDE}")
+
+          set_image() {
+            local image="$1"
+            if grep -qE '^IMAGE_NAME=' "${ENV_PATH}"; then
+              sed -i "s|^IMAGE_NAME=.*|IMAGE_NAME=${image}|" "${ENV_PATH}"
+            else
+              printf '\nIMAGE_NAME=%s\n' "${image}" >> "${ENV_PATH}"
+            fi
+          }
+
+          rollback_app() {
+            local reason="$1"
+            echo "::error::${reason}"
+            "${COMPOSE[@]}" logs --tail=100 api worker migrate || true
+            if [ -z "${PREVIOUS_IMAGE}" ] || [ "${PREVIOUS_IMAGE}" = "${NEW_IMAGE}" ]; then
+              echo "::error::No previous IMAGE_NAME available for automatic rollback"
+              return 1
+            fi
+            echo "Rolling back application image to ${PREVIOUS_IMAGE} ..."
+            set_image "${PREVIOUS_IMAGE}"
+            "${COMPOSE[@]}" pull api worker
+            "${COMPOSE[@]}" up -d --remove-orphans --wait --wait-timeout 120 api worker postgres-backup
+            echo "Rollback complete (schema migrations are not reverted automatically)."
+            return 1
+          }
+
+          verify_ready() {
+            echo "Waiting for ${HEALTH_READY_URL} ..."
+            for _ in $(seq 1 30); do
+              if "${COMPOSE[@]}" exec -T api node -e "
+                fetch(\"${HEALTH_READY_URL}\")
+                  .then(async (r) => {
+                    const body = await r.text();
+                    if (!r.ok) { console.error(body); process.exit(1); }
+                    console.log(body);
+                  })
+                  .catch((e) => { console.error(e); process.exit(1); });
+              "; then
+                return 0
+              fi
+              sleep 4
+            done
+            return 1
+          }
+
+          "${COMPOSE[@]}" pull
+
+          "${COMPOSE[@]}" up -d postgres redis
+          "${COMPOSE[@]}" up -d --wait --wait-timeout 90 postgres redis
+
+          if ! "${COMPOSE[@]}" run --rm migrate; then
+            rollback_app "Database migration failed"
+            exit 1
+          fi
+
+          if ! "${COMPOSE[@]}" up -d --remove-orphans --wait --wait-timeout 120 api worker postgres-backup; then
+            rollback_app "Failed to start api/worker"
+            exit 1
+          fi
+
+          if ! verify_ready; then
+            rollback_app "Post-deploy HTTP health check failed (${HEALTH_READY_URL})"
+            exit 1
+          fi
+
+          echo "Production deploy OK — image=${NEW_IMAGE}"
+          REMOTE

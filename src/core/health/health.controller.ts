@@ -3,8 +3,11 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Res,
   VERSION_NEUTRAL,
 } from '@nestjs/common';
+import type { Response } from 'express';
+import { errorRequestResponse } from '../utils/helper';
 import { Public } from '../decorators/public.decorator';
 import { HealthService } from './health.service';
 
@@ -21,7 +24,21 @@ export class HealthController {
 
   @Get('ready')
   @HttpCode(HttpStatus.OK)
-  async readiness() {
-    return this.healthService.getReadiness();
+  async readiness(@Res({ passthrough: true }) response: Response) {
+    const report = await this.healthService.getReadiness();
+
+    if (report.status === 'degraded') {
+      response.status(HttpStatus.SERVICE_UNAVAILABLE);
+      return errorRequestResponse(
+        'Readiness check failed',
+        HttpStatus.SERVICE_UNAVAILABLE,
+        {
+          code: 'SERVICE_UNAVAILABLE',
+          data: report,
+        },
+      );
+    }
+
+    return report;
   }
 }

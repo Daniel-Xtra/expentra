@@ -30,7 +30,8 @@ type HttpRequestWithUploads = Request & {
 };
 
 export const FILE_UPLOAD_CONFIG = {
-  MAX_FILE_SIZE: 3.5 * 1024 * 1024, // 3MB in bytes
+  /** Must match `RECEIPT_MAX_FILE_BYTES` in receipt.constants.ts */
+  MAX_FILE_SIZE: 3.5 * 1024 * 1024, // 3.5MB in bytes
   ALLOWED_FILE_TYPES: [
     'image/jpeg',
     'image/jpg',

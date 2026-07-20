@@ -35,9 +35,10 @@ lerna-debug.log*
 !.vscode/launch.json
 !.vscode/extensions.json
 
-# Ignore all env files
+# Ignore all env files (keep committed examples)
 .env
 .env.*
+!.env.example
 
 # temp directory
 .temp
@@ -51,3 +52,7 @@ pids
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# Lockfiles / build info (pnpm is the package manager)
+package-lock.json
+*.tsbuildinfo
