@@ -7,7 +7,7 @@ Production/staging deploy for the NestJS backend (`expentra`) on a VPS with Dock
 | Layer | Service | Responsibility |
 |-------|---------|----------------|
 | Source control | GitHub | Code, PRs, branch protection |
-| CI | GitHub Actions ([`ci.yml`](.github/workflows/ci.yml)) | Lint, test, build |
+| CI | GitHub Actions ([`ci.yml`](.github/workflows/ci.yml)) | Lint, typecheck, test, build on PRs into `staging` / `main` |
 | CD | GitHub Actions ([`deploy-staging.yml`](.github/workflows/deploy-staging.yml), [`deploy-production.yml`](.github/workflows/deploy-production.yml)) | Build image → Docker Hub → VPS |
 | Runtime | VPS + Docker Compose | Postgres, Redis, API, worker, backups |
 

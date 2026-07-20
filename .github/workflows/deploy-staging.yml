@@ -82,7 +82,11 @@ jobs:
             echo "::error::Missing environment secret ENV_FILE_B64 (base64-encoded .env file)"
             exit 1
           fi
-          printf '%s' "${ENV_FILE_B64}" | base64 -d > /tmp/expentra.env
+          if [ -z "${IMAGE_NAME}" ]; then
+            echo "::error::Build job did not output an image name"
+            exit 1
+          fi
+          printf '%s' "${ENV_FILE_B64}" | base64 -d | tr -d '\r' > /tmp/expentra.env
           grep -qE '^[A-Za-z_][A-Za-z0-9_]*=' /tmp/expentra.env || {
             echo "::error::Decoded environment file is invalid."
             exit 1
@@ -92,6 +96,8 @@ jobs:
           else
             printf '\nIMAGE_NAME=%s\n' "${IMAGE_NAME}" >> /tmp/expentra.env
           fi
+          grep -qE "^IMAGE_NAME=${IMAGE_NAME}$" /tmp/expentra.env
+          echo "Deploy image: ${IMAGE_NAME}"
 
       - name: Start SSH agent
         uses: webfactory/ssh-agent@v0.9.0
@@ -142,7 +148,7 @@ jobs:
             "${VPS_USER}@${VPS_HOST}:/opt/expentra-staging/scripts/"
           scp /tmp/expentra.env "${VPS_USER}@${VPS_HOST}:/opt/expentra-staging/env/${ENV_FILE}"
           ssh "${VPS_USER}@${VPS_HOST}" \
-            "chmod 600 '/opt/expentra-staging/env/${ENV_FILE}' && rm -f '/opt/expentra-staging/compose/.env'"
+            "chmod 600 '/opt/expentra-staging/env/${ENV_FILE}'"
 
       - name: Pull, migrate, restart, verify health (rollback on failure)
         env:
@@ -164,18 +170,39 @@ jobs:
             'bash -s' <<'REMOTE'
           set -euo pipefail
 
+          if [ -z "${NEW_IMAGE}" ]; then
+            echo "::error::NEW_IMAGE is empty — cannot deploy"
+            exit 1
+          fi
+
           echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
           cd /opt/expentra-staging/compose
           ENV_PATH="../env/${ENV_FILE}"
+
+          # Compose interpolates ${IMAGE_NAME} from the process environment (and --env-file).
+          # Exporting avoids "worker has neither an image nor a build context" when the
+          # env file alone is not picked up for interpolation.
+          export IMAGE_NAME="${NEW_IMAGE}"
+          if grep -qE '^IMAGE_NAME=' "${ENV_PATH}"; then
+            sed -i "s|^IMAGE_NAME=.*|IMAGE_NAME=${IMAGE_NAME}|" "${ENV_PATH}"
+          else
+            printf '\nIMAGE_NAME=%s\n' "${IMAGE_NAME}" >> "${ENV_PATH}"
+          fi
+          # Tiny project .env so Compose always interpolates (in addition to shell export).
+          printf 'IMAGE_NAME=%s\n' "${IMAGE_NAME}" > .env
+          chmod 600 .env "${ENV_PATH}"
+
           COMPOSE=(docker compose --env-file "${ENV_PATH}" -f docker-compose.yml -f "${COMPOSE_OVERRIDE}")
 
           set_image() {
             local image="$1"
+            export IMAGE_NAME="${image}"
             if grep -qE '^IMAGE_NAME=' "${ENV_PATH}"; then
               sed -i "s|^IMAGE_NAME=.*|IMAGE_NAME=${image}|" "${ENV_PATH}"
             else
               printf '\nIMAGE_NAME=%s\n' "${image}" >> "${ENV_PATH}"
             fi
+            printf 'IMAGE_NAME=%s\n' "${image}" > .env
           }
 
           rollback_app() {
@@ -212,6 +239,9 @@ jobs:
             done
             return 1
           }
+
+          echo "Using IMAGE_NAME=${IMAGE_NAME}"
+          "${COMPOSE[@]}" config --images
 
           "${COMPOSE[@]}" pull
 
