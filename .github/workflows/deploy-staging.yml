@@ -25,7 +25,7 @@ jobs:
     environment: staging
     timeout-minutes: 30
     outputs:
-      image: ${{ steps.meta.outputs.image }}
+      tag: ${{ steps.meta.outputs.tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -39,14 +39,19 @@ jobs:
       - name: Image name (immutable SHA tag)
         id: meta
         env:
-          IMAGE_REPOSITORY: ${{ secrets.DOCKERHUB_IMAGE }}
+          IMAGE_REPOSITORY_SECRET: ${{ secrets.DOCKERHUB_IMAGE }}
+          IMAGE_REPOSITORY_VAR: ${{ vars.DOCKERHUB_IMAGE }}
         run: |
-          if [ -z "${IMAGE_REPOSITORY}" ]; then
-            echo "::error::Missing environment secret DOCKERHUB_IMAGE (e.g. youruser/expentra)"
+          REPO="${IMAGE_REPOSITORY_SECRET:-$IMAGE_REPOSITORY_VAR}"
+          if [ -z "${REPO}" ]; then
+            echo "::error::Set DOCKERHUB_IMAGE as an Environment variable (recommended) or secret (e.g. youruser/expentra)"
             exit 1
           fi
-          echo "image=${IMAGE_REPOSITORY}:sha-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
-          echo "image_base=${IMAGE_REPOSITORY}" >> "$GITHUB_OUTPUT"
+          SHA_TAG="sha-${GITHUB_SHA}"
+          echo "repo=${REPO}" >> "$GITHUB_OUTPUT"
+          echo "tag=${SHA_TAG}" >> "$GITHUB_OUTPUT"
+          echo "image=${REPO}:${SHA_TAG}" >> "$GITHUB_OUTPUT"
+          echo "Building: ${REPO}:${SHA_TAG}"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -59,7 +64,7 @@ jobs:
           push: true
           tags: |
             ${{ steps.meta.outputs.image }}
-            ${{ steps.meta.outputs.image_base }}:staging
+            ${{ steps.meta.outputs.repo }}:staging
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -74,16 +79,21 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Decode ENV_FILE_B64 and set IMAGE_NAME
+        id: image
         env:
           ENV_FILE_B64: ${{ secrets.ENV_FILE_B64 }}
-          IMAGE_NAME: ${{ needs.build-and-push.outputs.image }}
+          IMAGE_REPOSITORY_SECRET: ${{ secrets.DOCKERHUB_IMAGE }}
+          IMAGE_REPOSITORY_VAR: ${{ vars.DOCKERHUB_IMAGE }}
         run: |
           if [ -z "${ENV_FILE_B64}" ]; then
             echo "::error::Missing environment secret ENV_FILE_B64 (base64-encoded .env file)"
             exit 1
           fi
-          if [ -z "${IMAGE_NAME}" ]; then
-            echo "::error::Build job did not output an image name"
+          # Reconstruct here — job outputs that include secret values are redacted/empty.
+          REPO="${IMAGE_REPOSITORY_SECRET:-$IMAGE_REPOSITORY_VAR}"
+          IMAGE_NAME="${REPO}:sha-${GITHUB_SHA}"
+          if [ -z "${REPO}" ]; then
+            echo "::error::DOCKERHUB_IMAGE is empty. Add it under Environment → Variables (preferred) or Secrets."
             exit 1
           fi
           printf '%s' "${ENV_FILE_B64}" | base64 -d | tr -d '\r' > /tmp/expentra.env
@@ -97,6 +107,7 @@ jobs:
             printf '\nIMAGE_NAME=%s\n' "${IMAGE_NAME}" >> /tmp/expentra.env
           fi
           grep -qE "^IMAGE_NAME=${IMAGE_NAME}$" /tmp/expentra.env
+          echo "image=${IMAGE_NAME}" >> "$GITHUB_OUTPUT"
           echo "Deploy image: ${IMAGE_NAME}"
 
       - name: Start SSH agent
@@ -157,7 +168,7 @@ jobs:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
           PREVIOUS_IMAGE: ${{ steps.previous.outputs.image }}
-          NEW_IMAGE: ${{ needs.build-and-push.outputs.image }}
+          NEW_IMAGE: ${{ steps.image.outputs.image }}
         run: |
           ssh "${VPS_USER}@${VPS_HOST}" \
             COMPOSE_OVERRIDE="$COMPOSE_OVERRIDE" \
