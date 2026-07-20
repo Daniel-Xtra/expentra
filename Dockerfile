@@ -28,7 +28,7 @@ COPY --from=deps /app/node_modules ./node_modules
 
 COPY . .
 
-RUN pnpm run build && pnpm run db:compile
+RUN pnpm run build
 
 # ---------------------------------------------------------------
 # 4️⃣ Production runtime
