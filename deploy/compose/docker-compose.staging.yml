@@ -18,7 +18,7 @@ services:
 
   api:
     container_name: expentra-api
-    image: ${IMAGE_NAME}
+    image: ${IMAGE_NAME:?IMAGE_NAME must be set}
     pull_policy: always
     restart: unless-stopped
     stop_grace_period: 30s
@@ -53,7 +53,7 @@ services:
 
   migrate:
     container_name: expentra-migrate
-    image: ${IMAGE_NAME}
+    image: ${IMAGE_NAME:?IMAGE_NAME must be set}
     pull_policy: always
     restart: "no"
     logging: *default-logging
@@ -72,7 +72,7 @@ services:
 
   worker:
     container_name: expentra-worker
-    image: ${IMAGE_NAME}
+    image: ${IMAGE_NAME:?IMAGE_NAME must be set}
     pull_policy: always
     restart: unless-stopped
     stop_grace_period: 30s

@@ -82,8 +82,8 @@ Merge path: feature branch → `staging` (PR) → `main` (PR) when promoting to 
 
 See **[DEPLOYMENT.md](DEPLOYMENT.md)** for VPS + GitHub Actions deploy:
 
-- CI on PRs / `staging` / `main`
-- Separate CD workflows: **Deploy Staging** and **Deploy Production** (Docker Hub + GitHub Environment secrets → VPS Compose)
+- CI on PRs into `staging` / `main` (not again on merge push)
+- Separate CD workflows: **Deploy Staging** and **Deploy Production**
 - Required secrets, env encoding, and rollback
 
 ## Resources

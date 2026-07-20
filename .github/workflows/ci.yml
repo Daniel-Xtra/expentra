@@ -1,11 +1,12 @@
 name: CI
 
+# Quality gate on PRs only — pushes to staging/main run Deploy, not a second CI.
 on:
   pull_request:
-  push:
     branches:
       - staging
       - main
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
