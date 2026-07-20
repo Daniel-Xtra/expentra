@@ -121,7 +121,7 @@ Use the in-compose service hostnames (not `localhost`):
 |----------|----------------------|
 | `IMAGE_NAME` | Optional placeholder; CI overwrites with `youruser/expentra:sha-<commit>` |
 | `PORT` | `3200` |
-| `POSTGRES_HOST` | `postgres` |
+| `POSTGRES_HOST` | `postgres` (Compose service name — not localhost or a host IP) |
 | `POSTGRES_PORT` | `5432` |
 | `REDIS_URL` | `redis://redis:6379` |
 | `REDIS_DISABLE_SSL` | `true` |
