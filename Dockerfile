@@ -76,7 +76,7 @@ COPY --from=builder /app/scripts ./scripts
 # ---------------------------------------------------------------
 # Ensure scripts are executable
 # ---------------------------------------------------------------
-RUN chmod +x /app/scripts/docker-entrypoint.sh
+RUN chmod +x /app/scripts/docker-entrypoint.sh /app/scripts/docker-migrate.sh
 
 # ---------------------------------------------------------------
 # Ensure correct ownership
