@@ -7,8 +7,6 @@ export const configValidationSchema = Joi.object({
   // Redis Configuration
   REDIS_URL: Joi.string().required(),
   REDIS_DISABLE_SSL: Joi.boolean().required(),
-  REDIS_HOST: Joi.string().required(),
-  REDIS_PORT: Joi.number().required(),
 
   // PostgreSQL Configuration
   POSTGRES_HOST: Joi.string().required(),
