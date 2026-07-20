@@ -1,3 +1,0 @@
-# Env files are written by CI from each GitHub Environment’s ENV_FILE_B64 secret.
-# IMAGE_NAME is upserted into that same file at deploy time (no compose/.env).
-# Never commit .env.production or .env.staging — see DEPLOYMENT.md.
