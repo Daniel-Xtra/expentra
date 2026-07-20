@@ -25,6 +25,7 @@ jobs:
     environment: staging
     timeout-minutes: 30
     outputs:
+      # Tag only — never put DOCKERHUB_IMAGE in job outputs (secrets get redacted/empty).
       tag: ${{ steps.meta.outputs.tag }}
     steps:
       - name: Checkout
@@ -36,37 +37,38 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Image name (immutable SHA tag)
+      - name: Image tag (immutable SHA)
         id: meta
+        run: |
+          SHA_TAG="sha-${GITHUB_SHA}"
+          echo "tag=${SHA_TAG}" >> "$GITHUB_OUTPUT"
+          echo "Building tag: ${SHA_TAG}"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Tags are built in-shell so DOCKERHUB_IMAGE (secret or var) is never placed in GITHUB_OUTPUT.
+      - name: Build and push
         env:
           IMAGE_REPOSITORY_SECRET: ${{ secrets.DOCKERHUB_IMAGE }}
           IMAGE_REPOSITORY_VAR: ${{ vars.DOCKERHUB_IMAGE }}
         run: |
+          set -euo pipefail
           REPO="${IMAGE_REPOSITORY_SECRET:-$IMAGE_REPOSITORY_VAR}"
           if [ -z "${REPO}" ]; then
             echo "::error::Set DOCKERHUB_IMAGE as an Environment variable (recommended) or secret (e.g. youruser/expentra)"
             exit 1
           fi
           SHA_TAG="sha-${GITHUB_SHA}"
-          echo "repo=${REPO}" >> "$GITHUB_OUTPUT"
-          echo "tag=${SHA_TAG}" >> "$GITHUB_OUTPUT"
-          echo "image=${REPO}:${SHA_TAG}" >> "$GITHUB_OUTPUT"
-          echo "Building: ${REPO}:${SHA_TAG}"
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build and push
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: Dockerfile
-          push: true
-          tags: |
-            ${{ steps.meta.outputs.image }}
-            ${{ steps.meta.outputs.repo }}:staging
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          echo "Building: ${REPO}:${SHA_TAG} and ${REPO}:staging"
+          docker buildx build \
+            --file Dockerfile \
+            --tag "${REPO}:${SHA_TAG}" \
+            --tag "${REPO}:staging" \
+            --cache-from type=gha \
+            --cache-to type=gha,mode=max \
+            --push \
+            .
 
   deploy:
     name: Deploy to VPS
@@ -79,35 +81,33 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Decode ENV_FILE_B64 and set IMAGE_NAME
-        id: image
         env:
           ENV_FILE_B64: ${{ secrets.ENV_FILE_B64 }}
           IMAGE_REPOSITORY_SECRET: ${{ secrets.DOCKERHUB_IMAGE }}
           IMAGE_REPOSITORY_VAR: ${{ vars.DOCKERHUB_IMAGE }}
         run: |
+          set -euo pipefail
           if [ -z "${ENV_FILE_B64}" ]; then
             echo "::error::Missing environment secret ENV_FILE_B64 (base64-encoded .env file)"
             exit 1
           fi
-          # Reconstruct here — job outputs that include secret values are redacted/empty.
           REPO="${IMAGE_REPOSITORY_SECRET:-$IMAGE_REPOSITORY_VAR}"
-          IMAGE_NAME="${REPO}:sha-${GITHUB_SHA}"
           if [ -z "${REPO}" ]; then
             echo "::error::DOCKERHUB_IMAGE is empty. Add it under Environment → Variables (preferred) or Secrets."
             exit 1
           fi
+          IMAGE_NAME="${REPO}:sha-${GITHUB_SHA}"
           printf '%s' "${ENV_FILE_B64}" | base64 -d | tr -d '\r' > /tmp/expentra.env
           grep -qE '^[A-Za-z_][A-Za-z0-9_]*=' /tmp/expentra.env || {
             echo "::error::Decoded environment file is invalid."
             exit 1
           }
-          if grep -qE '^IMAGE_NAME=' /tmp/expentra.env; then
-            sed -i "s|^IMAGE_NAME=.*|IMAGE_NAME=${IMAGE_NAME}|" /tmp/expentra.env
-          else
-            printf '\nIMAGE_NAME=%s\n' "${IMAGE_NAME}" >> /tmp/expentra.env
-          fi
+          # Drop any existing IMAGE_NAME lines, then append the new SHA tag once.
+          grep -vE '^IMAGE_NAME=' /tmp/expentra.env > /tmp/expentra.env.clean || true
+          printf 'IMAGE_NAME=%s\n' "${IMAGE_NAME}" >> /tmp/expentra.env.clean
+          mv /tmp/expentra.env.clean /tmp/expentra.env
           grep -qE "^IMAGE_NAME=${IMAGE_NAME}$" /tmp/expentra.env
-          echo "image=${IMAGE_NAME}" >> "$GITHUB_OUTPUT"
+          printf '%s\n' "${IMAGE_NAME}" > /tmp/expentra.new-image
           echo "Deploy image: ${IMAGE_NAME}"
 
       - name: Start SSH agent
@@ -135,14 +135,14 @@ jobs:
           chmod 600 ~/.ssh/config
 
       - name: Capture previous IMAGE_NAME for rollback
-        id: previous
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
         run: |
+          # File on runner — do not use GITHUB_OUTPUT (secret-containing values get wiped).
           PREV="$(ssh "${VPS_USER}@${VPS_HOST}" \
             "grep -E '^IMAGE_NAME=' '/opt/expentra-staging/env/${ENV_FILE}' 2>/dev/null | cut -d= -f2- || true")"
-          echo "image=${PREV}" >> "$GITHUB_OUTPUT"
+          printf '%s\n' "${PREV}" > /tmp/expentra.prev-image
           echo "Previous IMAGE_NAME=${PREV:-<none>}"
 
       - name: Sync deploy files and env to VPS
@@ -167,9 +167,25 @@ jobs:
           VPS_USER: ${{ secrets.VPS_USER }}
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-          PREVIOUS_IMAGE: ${{ steps.previous.outputs.image }}
-          NEW_IMAGE: ${{ steps.image.outputs.image }}
+          IMAGE_REPOSITORY_SECRET: ${{ secrets.DOCKERHUB_IMAGE }}
+          IMAGE_REPOSITORY_VAR: ${{ vars.DOCKERHUB_IMAGE }}
         run: |
+          set -euo pipefail
+          REPO="${IMAGE_REPOSITORY_SECRET:-$IMAGE_REPOSITORY_VAR}"
+          NEW_IMAGE="${REPO}:sha-${GITHUB_SHA}"
+          if [ -f /tmp/expentra.new-image ]; then
+            NEW_IMAGE="$(tr -d '\r\n' < /tmp/expentra.new-image)"
+          fi
+          PREVIOUS_IMAGE=""
+          if [ -f /tmp/expentra.prev-image ]; then
+            PREVIOUS_IMAGE="$(tr -d '\r\n' < /tmp/expentra.prev-image)"
+          fi
+          if [ -z "${NEW_IMAGE}" ] || [ -z "${REPO}" ]; then
+            echo "::error::NEW_IMAGE is empty — cannot deploy (check DOCKERHUB_IMAGE)"
+            exit 1
+          fi
+          echo "Deploying ${NEW_IMAGE} (previous=${PREVIOUS_IMAGE:-<none>})"
+
           ssh "${VPS_USER}@${VPS_HOST}" \
             COMPOSE_OVERRIDE="$COMPOSE_OVERRIDE" \
             ENV_FILE="$ENV_FILE" \
@@ -190,16 +206,10 @@ jobs:
           cd /opt/expentra-staging/compose
           ENV_PATH="../env/${ENV_FILE}"
 
-          # Compose interpolates ${IMAGE_NAME} from the process environment (and --env-file).
-          # Exporting avoids "worker has neither an image nor a build context" when the
-          # env file alone is not picked up for interpolation.
           export IMAGE_NAME="${NEW_IMAGE}"
-          if grep -qE '^IMAGE_NAME=' "${ENV_PATH}"; then
-            sed -i "s|^IMAGE_NAME=.*|IMAGE_NAME=${IMAGE_NAME}|" "${ENV_PATH}"
-          else
-            printf '\nIMAGE_NAME=%s\n' "${IMAGE_NAME}" >> "${ENV_PATH}"
-          fi
-          # Tiny project .env so Compose always interpolates (in addition to shell export).
+          grep -vE '^IMAGE_NAME=' "${ENV_PATH}" > "${ENV_PATH}.tmp" || true
+          printf 'IMAGE_NAME=%s\n' "${IMAGE_NAME}" >> "${ENV_PATH}.tmp"
+          mv "${ENV_PATH}.tmp" "${ENV_PATH}"
           printf 'IMAGE_NAME=%s\n' "${IMAGE_NAME}" > .env
           chmod 600 .env "${ENV_PATH}"
 
@@ -208,11 +218,9 @@ jobs:
           set_image() {
             local image="$1"
             export IMAGE_NAME="${image}"
-            if grep -qE '^IMAGE_NAME=' "${ENV_PATH}"; then
-              sed -i "s|^IMAGE_NAME=.*|IMAGE_NAME=${image}|" "${ENV_PATH}"
-            else
-              printf '\nIMAGE_NAME=%s\n' "${image}" >> "${ENV_PATH}"
-            fi
+            grep -vE '^IMAGE_NAME=' "${ENV_PATH}" > "${ENV_PATH}.tmp" || true
+            printf 'IMAGE_NAME=%s\n' "${image}" >> "${ENV_PATH}.tmp"
+            mv "${ENV_PATH}.tmp" "${ENV_PATH}"
             printf 'IMAGE_NAME=%s\n' "${image}" > .env
           }
 
@@ -227,7 +235,7 @@ jobs:
             echo "Rolling back application image to ${PREVIOUS_IMAGE} ..."
             set_image "${PREVIOUS_IMAGE}"
             "${COMPOSE[@]}" pull api worker
-            "${COMPOSE[@]}" up -d --remove-orphans --wait --wait-timeout 120 api worker postgres-backup
+            "${COMPOSE[@]}" up -d --force-recreate --remove-orphans --wait --wait-timeout 120 api worker postgres-backup
             echo "Rollback complete (schema migrations are not reverted automatically)."
             return 1
           }
@@ -252,9 +260,10 @@ jobs:
           }
 
           echo "Using IMAGE_NAME=${IMAGE_NAME}"
+          grep -E '^IMAGE_NAME=' "${ENV_PATH}" || true
           "${COMPOSE[@]}" config --images
 
-          "${COMPOSE[@]}" pull
+          "${COMPOSE[@]}" pull api worker migrate
 
           "${COMPOSE[@]}" up -d postgres redis
           "${COMPOSE[@]}" up -d --wait --wait-timeout 90 postgres redis
@@ -264,7 +273,7 @@ jobs:
             exit 1
           fi
 
-          if ! "${COMPOSE[@]}" up -d --remove-orphans --wait --wait-timeout 120 api worker postgres-backup; then
+          if ! "${COMPOSE[@]}" up -d --force-recreate --remove-orphans --wait --wait-timeout 120 api worker postgres-backup; then
             rollback_app "Failed to start api/worker"
             exit 1
           fi
@@ -274,5 +283,7 @@ jobs:
             exit 1
           fi
 
+          echo "Running containers:"
+          docker ps --filter name=expentra-api --filter name=expentra-worker --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}'
           echo "Staging deploy OK — image=${NEW_IMAGE}"
           REMOTE

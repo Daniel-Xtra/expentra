@@ -59,7 +59,9 @@ Use the **same secret names** in both environments:
 | `VPS_SSH_KEY` | Private SSH key for that user |
 | `VPS_KNOWN_HOSTS` | Pinned SSH host keys (output of `ssh-keyscan -H <host>`) |
 
-CI writes one file (`env/.env.production` or `env/.env.staging`), upserts `IMAGE_NAME` to the image just pushed, and runs Compose with `--env-file` so `${IMAGE_NAME}` interpolates from that same file. No second `compose/.env`.
+CI writes one file (`env/.env.production` or `env/.env.staging`), upserts `IMAGE_NAME` to the image just pushed, and runs Compose with `--env-file` so `${IMAGE_NAME}` interpolates from that same file. Compose also gets a tiny `compose/.env` containing only `IMAGE_NAME` for interpolation.
+
+**Important:** A Docker Hub Autobuild success is not a VPS deploy. Only the GitHub Actions **Deploy Staging** / **Deploy Production** jobs update `/opt/expentra-*/env` and recreate containers. Prefer `DOCKERHUB_IMAGE` as an Environment **variable** (not a secret) so image names are not redacted in Actions.
 
 ### Pin `VPS_KNOWN_HOSTS`
 
