@@ -1,0 +1,72 @@
+name: expentra
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+networks:
+  backend:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  postgres_backups:
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: expentra-postgres
+    restart: unless-stopped
+    logging: *default-logging
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - backend
+
+  redis:
+    image: redis:7-alpine
+    container_name: expentra-redis
+    restart: unless-stopped
+    logging: *default-logging
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - backend
+
+  postgres-backup:
+    image: postgres:15-alpine
+    container_name: expentra-postgres-backup
+    restart: unless-stopped
+    logging: *default-logging
+    volumes:
+      # /opt/expentra/compose → /opt/expentra/scripts/backup
+      - ../scripts/backup:/backup:ro
+      - postgres_backups:/backups
+    entrypoint: ["/bin/sh", "-c"]
+    command: |
+      set -eu
+      mkdir -p /runtime
+      sed 's/\r$$//' /backup/backup.sh > /runtime/backup.sh
+      sed 's/\r$$//' /backup/restore.sh > /runtime/restore.sh
+      sed 's/\r$$//' /backup/entrypoint.sh > /runtime/entrypoint.sh
+      chmod +x /runtime/*.sh
+      exec /bin/sh /runtime/entrypoint.sh
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - backend

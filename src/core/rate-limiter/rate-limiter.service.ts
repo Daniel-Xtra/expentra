@@ -47,6 +47,7 @@ export class RateLimiterService implements OnModuleInit {
     identifier: string,
     limit: number,
     ttlInMs: number,
+    failClosed = false,
   ): Promise<RateLimitResult> {
     const key = `ratelimit:${resource}:${identifier}`;
     const now = Date.now();
@@ -71,6 +72,9 @@ export class RateLimiterService implements OnModuleInit {
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : String(error);
       this.logger.error(`Rate limit check failed for ${key}: ${msg}`);
+      if (failClosed) {
+        return { allowed: false, remaining: 0, resetTime: now + ttlInMs };
+      }
       return { allowed: true, remaining: limit, resetTime: 0 };
     }
   }

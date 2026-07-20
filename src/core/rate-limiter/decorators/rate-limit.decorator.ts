@@ -4,6 +4,8 @@ export interface RateLimitOptions {
   limit: number;
   ttl: number; // in seconds
   resource?: string; // Optional custom resource name for grouping
+  /** When true, deny requests if the rate limiter backend is unavailable. */
+  failClosed?: boolean;
 }
 
 export const RATE_LIMIT_METADATA_KEY = 'rate_limit_options';

@@ -11,4 +11,13 @@ docker-compose*.yml
 .vscode
 .idea
 *.log
+src/postman/*.json
+scripts/generate_postman_collection.ts
+Dockerfile*
+docker-compose*
+.github
 docs
+tmp
+*.local
+.env.production
+.env.development

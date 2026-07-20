@@ -23,26 +23,37 @@
 
 ## Description
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+NestJS API for Expentra — internal expense management (PostgreSQL, Redis, JWT).
+
+Run all commands from this directory. The React frontend lives in the sibling [`../expentra-web`](../expentra-web) project.
+
+**API docs:** [POST endpoint payload samples](./docs/api-post-payloads.md) — request body examples for every `POST` route.
 
 ## Project setup
 
 ```bash
-$ pnpm install
+pnpm install
 ```
 
 ## Compile and run the project
 
-```bash
-# development
-$ pnpm run start
+The HTTP API and BullMQ worker are **separate processes** (same codebase and Docker image).
 
-# watch mode
+```bash
+# API — development (watch)
 $ pnpm run start:dev
 
-# production mode
-$ pnpm run start:prod
+# Worker — development (watch); required for background jobs
+$ pnpm run start:worker:dev
+
+# API — production build output
+$ pnpm run start
+
+# Worker — production build output
+$ pnpm run start:worker
 ```
+
+With Docker Compose, start both `api` and `worker` services. The worker uses `command: node dist/worker.js` and `RUN_MIGRATIONS=false`.
 
 ## Run tests
 
@@ -57,18 +68,23 @@ $ pnpm run test:e2e
 $ pnpm run test:cov
 ```
 
+## Branch strategy
+
+| Branch | Purpose |
+|--------|---------|
+| `feature/*` | Feature work — no long-lived deploy |
+| `staging` | Integration / staging |
+| `main` | Production |
+
+Merge path: feature branch → `staging` (PR) → `main` (PR) when promoting to production.
+
 ## Deployment
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+See **[DEPLOYMENT.md](DEPLOYMENT.md)** for VPS + GitHub Actions deploy:
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ pnpm install -g @nestjs/mau
-$ mau deploy
-```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+- CI on PRs / `staging` / `main`
+- Separate CD workflows: **Deploy Staging** and **Deploy Production** (Docker Hub + GitHub Environment secrets → VPS Compose)
+- Required secrets, env encoding, and rollback
 
 ## Resources
 

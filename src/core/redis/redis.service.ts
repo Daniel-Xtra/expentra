@@ -6,6 +6,8 @@ import {
 } from '@nestjs/common';
 import Redis, { type RedisOptions } from 'ioredis';
 import { ConfigService } from '@nestjs/config';
+import * as fs from 'fs';
+import path from 'path';
 
 @Injectable()
 export class RedisService implements OnModuleInit, OnModuleDestroy {
@@ -18,8 +20,9 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     this.logger.log('Initializing Redis connection...');
 
     const redisOptions: RedisOptions = {
-      maxRetriesPerRequest: null,
-      connectTimeout: 10000,
+      maxRetriesPerRequest: 3,
+      enableOfflineQueue: false,
+      connectTimeout: 3000,
       retryStrategy(times: number) {
         return Math.min(times * 50, 2000);
       },
@@ -30,7 +33,19 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       this.configService.get<boolean>('REDIS_DISABLE_SSL') ?? false;
 
     if (!disableSsl) {
-      redisOptions.tls = { rejectUnauthorized: false };
+      const tls: NonNullable<RedisOptions['tls']> = {
+        rejectUnauthorized: this.configService.get<boolean>(
+          'REDIS_TLS_REJECT_UNAUTHORIZED',
+          true,
+        ),
+      };
+
+      const caPath = this.configService.get<string>('REDIS_TLS_CA', '')?.trim();
+      if (caPath) {
+        tls.ca = fs.readFileSync(path.resolve(caPath), 'utf8');
+      }
+
+      redisOptions.tls = tls;
     }
 
     this.client = new Redis(redisUrl, redisOptions);
@@ -102,6 +117,15 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     ttlSeconds: number,
   ): Promise<'OK'> {
     return this.client.set(key, JSON.stringify(value), 'EX', ttlSeconds);
+  }
+
+  async setIfNotExists(
+    key: string,
+    value: string,
+    ttlSeconds: number,
+  ): Promise<boolean> {
+    const result = await this.client.set(key, value, 'EX', ttlSeconds, 'NX');
+    return result === 'OK';
   }
 
   async getCache<T>(key: string): Promise<T | null> {
