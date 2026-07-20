@@ -64,7 +64,9 @@ describe('PermissionAssignmentPolicy', () => {
     };
 
     expect(() =>
-      policy.assertCanAssignPermissions(superAdmin, [permission('user.update')]),
+      policy.assertCanAssignPermissions(superAdmin, [
+        permission('user.update'),
+      ]),
     ).not.toThrow();
   });
 

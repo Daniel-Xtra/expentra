@@ -47,7 +47,10 @@ export {
 export { capabilitiesForOrgGrants } from './org-grants/org-grant.capabilities';
 
 // Policy handlers
-export { canDecideOnApprovalAbility, canReadManagedDepartments } from './policies/policy-handlers';
+export {
+  canDecideOnApprovalAbility,
+  canReadManagedDepartments,
+} from './policies/policy-handlers';
 export { assertCanAssignRole } from './policies/role-assignment.policy';
 
 // Service layer

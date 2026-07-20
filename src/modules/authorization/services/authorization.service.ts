@@ -154,6 +154,6 @@ export class AuthorizationService {
 
   async buildAccessReviewCsv(): Promise<string> {
     const rows = await this.buildAccessReview();
-    return buildAccessReviewCsv(rows as AccessReviewRow[]);
+    return buildAccessReviewCsv(rows);
   }
 }

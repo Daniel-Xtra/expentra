@@ -36,7 +36,9 @@ export function buildAccessReviewCsv(rows: AccessReviewRow[]): string {
       row.departmentName ?? '',
       row.permissionNames.join('; '),
       row.orgGrants
-        .map((grant) => (grant.label ? `${grant.type}:${grant.label}` : grant.type))
+        .map((grant) =>
+          grant.label ? `${grant.type}:${grant.label}` : grant.type,
+        )
         .join('; '),
       String(row.capabilities.length),
     ]

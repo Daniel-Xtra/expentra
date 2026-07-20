@@ -30,7 +30,10 @@ export class AbilityFactory {
     const permissions = user.permissions as AuthUserPermission[];
     builder.withPermissions(permissions);
 
-    if (this.approvalAccess.isManagerApprover(user) || isDepartmentManager(user)) {
+    if (
+      this.approvalAccess.isManagerApprover(user) ||
+      isDepartmentManager(user)
+    ) {
       builder.can(PermissionAction.APPROVE, PermissionResource.APPROVAL);
       builder.can(PermissionAction.REJECT, PermissionResource.APPROVAL);
     }

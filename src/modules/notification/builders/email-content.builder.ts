@@ -167,10 +167,7 @@ export class EmailContentBuilder {
     };
   }
 
-  exportReady(payload: {
-    fileName: string;
-    exportLabel: string;
-  }): {
+  exportReady(payload: { fileName: string; exportLabel: string }): {
     template: string;
     data: Record<string, unknown>;
   } {

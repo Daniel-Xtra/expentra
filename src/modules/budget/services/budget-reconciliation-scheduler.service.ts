@@ -5,7 +5,9 @@ import { BUDGET_RECONCILIATION_QUEUE } from '../constants/budget-reconciliation.
 
 @Injectable()
 export class BudgetReconciliationSchedulerService implements OnModuleInit {
-  private readonly logger = new Logger(BudgetReconciliationSchedulerService.name);
+  private readonly logger = new Logger(
+    BudgetReconciliationSchedulerService.name,
+  );
 
   constructor(
     @InjectQueue(BUDGET_RECONCILIATION_QUEUE)

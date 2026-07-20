@@ -32,9 +32,7 @@ export interface IExpenseService {
     authUser: IAuthUser,
     query: ListExpensesQuery,
   ): Promise<PaginatedExpensesResult>;
-  resolveApprovalBudgetFlags(
-    expenses: Expense[],
-  ): Promise<
+  resolveApprovalBudgetFlags(expenses: Expense[]): Promise<
     Map<
       number,
       {

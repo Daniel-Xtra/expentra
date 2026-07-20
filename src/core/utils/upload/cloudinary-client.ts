@@ -21,7 +21,7 @@ export type CloudinaryV2Client = {
 
 function loadCloudinaryV2(): CloudinaryV2Client {
   // CommonJS entry; keeps typed surface without relying on package export resolution in ESLint.
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
+
   const pkg = require('cloudinary') as { v2: CloudinaryV2Client };
   return pkg.v2;
 }

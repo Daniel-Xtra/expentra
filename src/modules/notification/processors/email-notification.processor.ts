@@ -25,8 +25,14 @@ export class EmailNotificationProcessor extends WorkerHost {
     job: Parameters<WorkerHost['process']>[0],
     _token?: string,
   ): Promise<void> {
-    const { notificationReference, to, template, data, attachments, correlationId } =
-      (job.data ?? {}) as EmailNotificationJobData;
+    const {
+      notificationReference,
+      to,
+      template,
+      data,
+      attachments,
+      correlationId,
+    } = (job.data ?? {}) as EmailNotificationJobData;
     this.logger.log(
       `Processing email notification ${notificationReference}${formatCorrelationLogSuffix(correlationId)}`,
     );

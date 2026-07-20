@@ -2,7 +2,8 @@ import { Injectable } from '@nestjs/common';
 import type { EntityManager } from 'typeorm';
 import { OutboxService } from './outbox.service';
 
-export type PublishDomainEventOptions = {  manager?: EntityManager;
+export type PublishDomainEventOptions = {
+  manager?: EntityManager;
   idempotencyKey?: string;
 };
 

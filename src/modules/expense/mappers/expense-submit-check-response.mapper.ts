@@ -3,7 +3,9 @@ import type { BudgetSubmitEvaluation } from 'src/modules/budget/types/budget.typ
 import { toPolicyEvaluationResponse } from 'src/modules/policy/mappers/policy-evaluation-response.mapper';
 import type { ExpenseSubmitCheckResult } from '../types/expense-submit-check.types';
 
-export function toBudgetSubmitCheckResponse(evaluation: BudgetSubmitEvaluation) {
+export function toBudgetSubmitCheckResponse(
+  evaluation: BudgetSubmitEvaluation,
+) {
   return {
     allowed: evaluation.allowed,
     wouldExceed: evaluation.wouldExceed,

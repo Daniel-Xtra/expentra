@@ -10,7 +10,10 @@ import type { Request } from 'express';
 import { ALLOW_AUTHENTICATED_KEY } from 'src/core/decorators/allow-authenticated.decorator';
 import { IS_PUBLIC_KEY } from 'src/core/decorators/public.decorator';
 import type { IAuthUser } from 'src/definition';
-import { ApiErrorCode, type ApiErrorCodeValue } from 'src/core/exceptions/api-error.types';
+import {
+  ApiErrorCode,
+  type ApiErrorCodeValue,
+} from 'src/core/exceptions/api-error.types';
 import { AbilityFactory } from '../ability/ability.factory';
 import type { AppAbility } from '../ability/app-ability';
 import {
@@ -42,7 +45,12 @@ export class AccessGuard implements CanActivate {
     const user = request.user;
 
     if (!user?.role) {
-      this.logDenied(request, user?.id, ApiErrorCode.FORBIDDEN, 'unauthenticated');
+      this.logDenied(
+        request,
+        user?.id,
+        ApiErrorCode.FORBIDDEN,
+        'unauthenticated',
+      );
       throw new ForbiddenException({
         code: ApiErrorCode.FORBIDDEN,
         message: 'User not authenticated',

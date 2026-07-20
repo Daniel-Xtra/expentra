@@ -1,4 +1,7 @@
-import { hashRequestBody, buildIdempotencyStorageKey } from './idempotency-hash.util';
+import {
+  hashRequestBody,
+  buildIdempotencyStorageKey,
+} from './idempotency-hash.util';
 
 describe('idempotency-hash.util', () => {
   it('hashes equivalent object key order the same way', () => {

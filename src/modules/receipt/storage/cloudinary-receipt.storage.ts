@@ -77,15 +77,12 @@ export class CloudinaryReceiptStorage implements IReceiptStorage {
         : cloudinaryResourceTypeForMime(input.mimeType);
 
     try {
-      const signedUrl = buildSignedCloudinaryDownloadUrl(
-        input.objectKey,
-        {
-          resourceType,
-          format: cloudinaryFormatFromMime(input.mimeType),
-          deliveryType: 'private',
-          ttlSeconds: 15 * 60,
-        },
-      );
+      const signedUrl = buildSignedCloudinaryDownloadUrl(input.objectKey, {
+        resourceType,
+        format: cloudinaryFormatFromMime(input.mimeType),
+        deliveryType: 'private',
+        ttlSeconds: 15 * 60,
+      });
       return await openCloudinaryUrlStream(signedUrl);
     } catch {
       throw new InternalServerErrorException('Failed to download receipt');

@@ -83,11 +83,14 @@ export class NotificationDomainEventRegistrar implements OnModuleInit {
       {
         name: 'expense-email',
         run: () =>
-          this.expenseNotificationListener.onExpenseReimbursed(payload as never),
+          this.expenseNotificationListener.onExpenseReimbursed(
+            payload as never,
+          ),
       },
       {
         name: 'in-app',
-        run: () => this.inAppNotificationListener.onReimbursed(payload as never),
+        run: () =>
+          this.inAppNotificationListener.onReimbursed(payload as never),
       },
     ]);
     this.registry.register('budget.overspend', (payload) => [

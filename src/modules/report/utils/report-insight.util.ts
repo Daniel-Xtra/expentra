@@ -1,6 +1,14 @@
-import { budgetPeriodRange, budgetQuarterRange, budgetYearRange } from 'src/modules/budget/utils/budget-period.util';
+import {
+  budgetPeriodRange,
+  budgetQuarterRange,
+  budgetYearRange,
+} from 'src/modules/budget/utils/budget-period.util';
 import { ReportPeriodMode } from '../constants/report-period-mode.enum';
-import type { AgingBucket, AgingBucketKey, SpendingReportQuery } from '../types/report.types';
+import type {
+  AgingBucket,
+  AgingBucketKey,
+  SpendingReportQuery,
+} from '../types/report.types';
 
 export const AGING_BUCKET_DEFS: Array<{
   key: AgingBucketKey;
@@ -9,9 +17,24 @@ export const AGING_BUCKET_DEFS: Array<{
   maxDaysExclusive: number | null;
 }> = [
   { key: '0_7', label: '0–7 days', minDaysInclusive: 0, maxDaysExclusive: 8 },
-  { key: '8_14', label: '8–14 days', minDaysInclusive: 8, maxDaysExclusive: 15 },
-  { key: '15_30', label: '15–30 days', minDaysInclusive: 15, maxDaysExclusive: 31 },
-  { key: '30_plus', label: '30+ days', minDaysInclusive: 31, maxDaysExclusive: null },
+  {
+    key: '8_14',
+    label: '8–14 days',
+    minDaysInclusive: 8,
+    maxDaysExclusive: 15,
+  },
+  {
+    key: '15_30',
+    label: '15–30 days',
+    minDaysInclusive: 15,
+    maxDaysExclusive: 31,
+  },
+  {
+    key: '30_plus',
+    label: '30+ days',
+    minDaysInclusive: 31,
+    maxDaysExclusive: null,
+  },
 ];
 
 export function emptyAgingBuckets(): AgingBucket[] {
@@ -75,10 +98,9 @@ export function shiftReportPeriodByMode(
   }
 
   if (periodMode === ReportPeriodMode.QUARTER) {
-    const absolute =
-      query.year * 4 + (query.quarter ?? 1) - 1 + deltaPeriods;
+    const absolute = query.year * 4 + (query.quarter ?? 1) - 1 + deltaPeriods;
     const year = Math.floor(absolute / 4);
-    const quarter = ((absolute % 4) + 4) % 4 + 1;
+    const quarter = (((absolute % 4) + 4) % 4) + 1;
     return {
       year,
       periodMode,

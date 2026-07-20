@@ -57,6 +57,9 @@ export class UserDepartmentChangeService {
   }
 
   emitDepartmentChanged(event: UserDepartmentChangedEvent): void {
-    void this.domainEventPublisher.publish(USER_DEPARTMENT_CHANGED_EVENT, event);
+    void this.domainEventPublisher.publish(
+      USER_DEPARTMENT_CHANGED_EVENT,
+      event,
+    );
   }
 }

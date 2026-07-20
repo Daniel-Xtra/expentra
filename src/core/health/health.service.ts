@@ -33,7 +33,9 @@ export class HealthService {
       this.queueHealthService.checkQueues(),
     ]);
 
-    const queuesUp = Object.values(queues).every((queue) => queue.status === 'up');
+    const queuesUp = Object.values(queues).every(
+      (queue) => queue.status === 'up',
+    );
     const status =
       database.status === 'up' &&
       redis.status === 'up' &&

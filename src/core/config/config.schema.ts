@@ -19,18 +19,16 @@ export const configValidationSchema = Joi.object({
 
   // Security & JWT Configuration
   JWT_SECRET: Joi.string().required(),
-  JWT_REFRESH_SECRET: Joi.string()
-    .when('NODE_ENV', {
-      is: 'production',
-      then: Joi.string().min(16).required(),
-      otherwise: Joi.optional().allow(''),
-    }),
-  JWT_EXPIRES_IN: Joi.string()
-    .when('NODE_ENV', {
-      is: 'production',
-      then: Joi.string().default('15m'),
-      otherwise: Joi.string().default('1d'),
-    }),
+  JWT_REFRESH_SECRET: Joi.string().when('NODE_ENV', {
+    is: 'production',
+    then: Joi.string().min(16).required(),
+    otherwise: Joi.optional().allow(''),
+  }),
+  JWT_EXPIRES_IN: Joi.string().when('NODE_ENV', {
+    is: 'production',
+    then: Joi.string().default('15m'),
+    otherwise: Joi.string().default('1d'),
+  }),
   JWT_REFRESH_EXPIRES: Joi.string().required(),
   ALLOW_PUBLIC_REGISTRATION: Joi.boolean().required(),
   ALLOWED_ORIGINS: Joi.string().required(),

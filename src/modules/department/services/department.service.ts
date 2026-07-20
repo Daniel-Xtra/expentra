@@ -12,9 +12,7 @@ import type {
   PaginatedDepartmentUsersResult,
   UpdateDepartmentInput,
 } from '../types/department.types';
-import type {
-  DepartmentDetailSummary,
-} from '../types/department-response.types';
+import type { DepartmentDetailSummary } from '../types/department-response.types';
 import { DepartmentManagerService } from './department-manager.service';
 import { DepartmentMutationService } from './department-mutation.service';
 import { DepartmentQueryService } from './department-query.service';

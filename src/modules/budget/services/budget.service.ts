@@ -33,9 +33,7 @@ import {
   recalculateDepartmentBudgetCommitted,
   recalculateDepartmentBudgetReimbursed,
 } from '../queries/budget-committed.query';
-import {
-  fetchCommittedByDepartment,
-} from '../queries/budget-organization.query';
+import { fetchCommittedByDepartment } from '../queries/budget-organization.query';
 import {
   computeProjectedBudgetMetrics,
   fetchDepartmentBudgetSummary,

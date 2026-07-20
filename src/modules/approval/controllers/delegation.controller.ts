@@ -66,7 +66,10 @@ export class DelegationController {
     @AuthUser() user: IAuthUser,
     @Query() query: ListDelegationsQueryDto,
   ) {
-    const result = await this.delegationService.findDelegatedToMe(user.id, query);
+    const result = await this.delegationService.findDelegatedToMe(
+      user.id,
+      query,
+    );
     return successRequestResponse(
       'Active delegations retrieved successfully',
       result.data.map(toDelegationResponse),

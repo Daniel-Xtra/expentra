@@ -32,7 +32,12 @@ export class CreateExpensesTable1700000010000 implements MigrationInterface {
             length: '64',
             isNullable: false,
           },
-          { name: 'status', type: 'varchar', default: "'DRAFT'", isNullable: false },
+          {
+            name: 'status',
+            type: 'varchar',
+            default: "'DRAFT'",
+            isNullable: false,
+          },
           { name: 'submitted_at', type: 'timestamptz', isNullable: true },
           { name: 'approved_at', type: 'timestamptz', isNullable: true },
           { name: 'rejected_at', type: 'timestamptz', isNullable: true },
@@ -84,9 +89,15 @@ export class CreateExpensesTable1700000010000 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_expenses_status_submitted_at"`);
-    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_expenses_department_id_status"`);
-    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_expenses_user_id_status"`);
+    await queryRunner.query(
+      `DROP INDEX IF EXISTS "IDX_expenses_status_submitted_at"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX IF EXISTS "IDX_expenses_department_id_status"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX IF EXISTS "IDX_expenses_user_id_status"`,
+    );
     await queryRunner.dropTable('expenses', true, true, true);
   }
 }

@@ -72,7 +72,9 @@ export class ExpenseDraftService {
     const title = input.title.trim();
     this.mutationSupport.assertNonEmptyTitle(title);
     this.mutationSupport.assertPositiveAmount(input.amount);
-    const incurredAt = input.incurredAt ? new Date(input.incurredAt) : undefined;
+    const incurredAt = input.incurredAt
+      ? new Date(input.incurredAt)
+      : undefined;
     this.mutationSupport.assertIncurredAt(incurredAt);
 
     const expense = this.expenseRepository.create({
@@ -135,7 +137,9 @@ export class ExpenseDraftService {
         expense.category = input.category;
       }
       if (input.incurredAt !== undefined) {
-        const incurredAt = input.incurredAt ? new Date(input.incurredAt) : undefined;
+        const incurredAt = input.incurredAt
+          ? new Date(input.incurredAt)
+          : undefined;
         this.mutationSupport.assertIncurredAt(incurredAt);
         expense.incurredAt = incurredAt;
       }

@@ -120,10 +120,9 @@ export class OutboxService {
       processedAt: new Date(),
       ...(processedPayload
         ? {
-            payload:
-              processedPayload as QueryDeepPartialEntity<
-                Record<string, unknown>
-              >,
+            payload: processedPayload as QueryDeepPartialEntity<
+              Record<string, unknown>
+            >,
           }
         : {}),
     };

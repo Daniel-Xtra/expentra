@@ -20,7 +20,7 @@ export class DepartmentExportJobRegistrar implements OnModuleInit {
       jobTypes: [ExportJobType.DEPARTMENT_XLSX, ExportJobType.DEPARTMENT_CSV],
       generate: async (request) => {
         const csv = await this.departmentService.buildDepartmentsExportCsv(
-          request.params as never,
+          request.params,
         );
         return excelExportFromCsv(csv, 'departments.xlsx');
       },

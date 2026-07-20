@@ -19,7 +19,7 @@ export class BudgetExportJobRegistrar implements OnModuleInit {
       jobTypes: [ExportJobType.BUDGET_XLSX, ExportJobType.BUDGET_CSV],
       generate: async (request) => {
         const csv = await this.budgetService.buildBudgetsExportCsv(
-          request.params as never,
+          request.params,
         );
         return excelExportFromCsv(csv, 'budgets.xlsx');
       },

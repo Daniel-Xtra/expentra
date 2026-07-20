@@ -15,9 +15,6 @@ export class MetricsController {
     if (response.headersSent) {
       return;
     }
-    response
-      .status(200)
-      .type(this.metricsService.getContentType())
-      .send(body);
+    response.status(200).type(this.metricsService.getContentType()).send(body);
   }
 }

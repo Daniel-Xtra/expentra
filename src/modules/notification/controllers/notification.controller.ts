@@ -76,7 +76,9 @@ export class NotificationController {
   @RequirePermission(PermissionAction.READ, PermissionResource.NOTIFICATION)
   async unreadCount(@AuthUser() user: IAuthUser): Promise<IResponse> {
     const count = await this.inboxService.getUnreadCount(user.id);
-    return successRequestResponse('Unread notification count retrieved', { count });
+    return successRequestResponse('Unread notification count retrieved', {
+      count,
+    });
   }
 
   @Post('read-all')

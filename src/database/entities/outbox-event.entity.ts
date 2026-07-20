@@ -16,7 +16,12 @@ export class OutboxEvent {
   @Column({ type: 'jsonb' })
   payload: Record<string, unknown>;
 
-  @Column({ name: 'correlation_id', type: 'varchar', length: 64, nullable: true })
+  @Column({
+    name: 'correlation_id',
+    type: 'varchar',
+    length: 64,
+    nullable: true,
+  })
   correlationId?: string | null;
 
   @Column({

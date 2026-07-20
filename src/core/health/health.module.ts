@@ -1,6 +1,9 @@
 import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
-import { OUTBOX_RELAY_QUEUE, DOMAIN_EVENT_QUEUE } from 'src/core/outbox/constants/outbox-queue.constants';
+import {
+  OUTBOX_RELAY_QUEUE,
+  DOMAIN_EVENT_QUEUE,
+} from 'src/core/outbox/constants/outbox-queue.constants';
 import { OutboxModule } from 'src/core/outbox/outbox.module';
 import { RedisModule } from 'src/core/redis/redis.module';
 import { EXPORT_QUEUE } from 'src/modules/export/constants/export-queue.constants';

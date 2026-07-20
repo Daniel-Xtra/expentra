@@ -116,7 +116,11 @@ export class RoleController {
     @Param('reference', EntityReferencePipe) reference: string,
     @Body() payload: SetRolePermissionsDto,
   ) {
-    const role = await this.roleService.setPermissions(actor, reference, payload);
+    const role = await this.roleService.setPermissions(
+      actor,
+      reference,
+      payload,
+    );
     return successRequestResponse(
       'Role permissions updated successfully',
       toRoleResponse(role, { includePermissions: true }),

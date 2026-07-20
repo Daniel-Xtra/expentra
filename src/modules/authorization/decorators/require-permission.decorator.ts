@@ -1,7 +1,4 @@
-import {
-  PermissionAction,
-  PermissionResource,
-} from '../constants/permissions';
+import { PermissionAction, PermissionResource } from '../constants/permissions';
 import { canReadManagedDepartments } from '../policies/policy-handlers';
 import { permissionTupleFromName } from '../registry/permission.registry';
 import { CheckPolicies } from './check-policies.decorator';
@@ -23,7 +20,9 @@ export const RequirePermissionByName = (permissionName: string) => {
 
 /** Pass if the ability satisfies any of the given action/resource pairs. */
 export const RequireAnyPermission = (
-  ...requirements: ReadonlyArray<readonly [PermissionAction, PermissionResource]>
+  ...requirements: ReadonlyArray<
+    readonly [PermissionAction, PermissionResource]
+  >
 ) =>
   CheckPolicies((ability) =>
     requirements.some(([action, resource]) => ability.can(action, resource)),

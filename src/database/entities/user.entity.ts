@@ -41,7 +41,12 @@ export class User {
   password?: string | null;
 
   /** local | oidc — how the account authenticates */
-  @Column({ name: 'auth_provider', type: 'varchar', length: 32, default: 'local' })
+  @Column({
+    name: 'auth_provider',
+    type: 'varchar',
+    length: 32,
+    default: 'local',
+  })
   authProvider: string;
 
   /** IdP subject (`sub`) when authProvider is oidc */

@@ -150,7 +150,9 @@ export class UserService implements IUserService {
     const departmentRefs = toDepartmentRefs(managedDepartments);
     const orgGrants = resolveOrgGrants(
       toAuthUser(user, {
-        managedDepartmentIds: managedDepartments.map((department) => department.id),
+        managedDepartmentIds: managedDepartments.map(
+          (department) => department.id,
+        ),
       }),
       departmentRefs,
     );
@@ -360,7 +362,11 @@ export class UserService implements IUserService {
     let activeStateChanged = false;
 
     if (input.isActive !== undefined) {
-      this.assertCanChangeUserActiveState(actor.id, targetUserId, input.isActive);
+      this.assertCanChangeUserActiveState(
+        actor.id,
+        targetUserId,
+        input.isActive,
+      );
       if (user.isActive !== input.isActive) {
         user.isActive = input.isActive;
         user.deactivatedAt = input.isActive ? null : new Date();
@@ -434,7 +440,7 @@ export class UserService implements IUserService {
         actorUserId: actor.id,
         userReference: user.reference,
         previousRoleReference,
-        nextRoleReference: changes.roleReference as string,
+        nextRoleReference: changes.roleReference,
       });
     }
 

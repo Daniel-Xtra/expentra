@@ -12,7 +12,10 @@ import { Department } from 'src/database/entities/department.entity';
 import { DepartmentBudget } from 'src/database/entities/department-budget.entity';
 import { Expense } from 'src/database/entities/expense.entity';
 import { ExpensePolicy } from 'src/database/entities/expense-policy.entity';
-import { ExpenseStatus, ExpenseCategory } from 'src/database/entities/expense.enums';
+import {
+  ExpenseStatus,
+  ExpenseCategory,
+} from 'src/database/entities/expense.enums';
 import { User } from 'src/database/entities/user.entity';
 import type { IAuthUser } from 'src/definition';
 import { AccessPolicyService } from 'src/modules/authorization';
@@ -161,7 +164,9 @@ export class ReportService implements IReportService {
 
     const now = new Date();
     const agingBuckets = emptyAgingBuckets();
-    const bucketByKey = new Map(agingBuckets.map((bucket) => [bucket.key, bucket]));
+    const bucketByKey = new Map(
+      agingBuckets.map((bucket) => [bucket.key, bucket]),
+    );
 
     let totalAmount = 0;
     let oldestApprovedAt: Date | null = null;
@@ -256,7 +261,9 @@ export class ReportService implements IReportService {
     return {
       monthOverMonth: {
         year: previousPeriod.year,
-        ...(previousPeriod.month != null ? { month: previousPeriod.month } : {}),
+        ...(previousPeriod.month != null
+          ? { month: previousPeriod.month }
+          : {}),
         ...(previousPeriod.quarter != null
           ? { quarter: previousPeriod.quarter }
           : {}),
@@ -297,7 +304,12 @@ export class ReportService implements IReportService {
     statuses: ExpenseStatus[],
     departmentId?: number,
   ): Promise<{ totalAmount: number; expenseCount: number }> {
-    const totals = await this.scopedExpenseQuery(authUser, query, statuses, departmentId)
+    const totals = await this.scopedExpenseQuery(
+      authUser,
+      query,
+      statuses,
+      departmentId,
+    )
       .select('COUNT(expense.id)', 'count')
       .addSelect('COALESCE(SUM(expense.amount), 0)', 'total')
       .getRawOne<{ count: string; total: string }>();
@@ -410,7 +422,12 @@ export class ReportService implements IReportService {
     statuses: ExpenseStatus[],
     departmentId?: number,
   ): Promise<TopSpenderRow[]> {
-    const rows = await this.scopedExpenseQuery(authUser, query, statuses, departmentId)
+    const rows = await this.scopedExpenseQuery(
+      authUser,
+      query,
+      statuses,
+      departmentId,
+    )
       .leftJoin('expenseOwner.department', 'department')
       .select('expenseOwner.reference', 'userReference')
       .addSelect('expenseOwner.email', 'userEmail')
@@ -607,7 +624,10 @@ export class ReportService implements IReportService {
   ): Partial<Record<ExpenseCategory, number>> {
     const amounts: Partial<Record<ExpenseCategory, number>> = {};
     const normalized = Object.fromEntries(
-      Object.entries(row ?? {}).map(([key, value]) => [key.toLowerCase(), value]),
+      Object.entries(row ?? {}).map(([key, value]) => [
+        key.toLowerCase(),
+        value,
+      ]),
     );
 
     for (const category of Object.values(ExpenseCategory)) {
@@ -884,7 +904,10 @@ export class ReportService implements IReportService {
   }
 
   private reportStatuses(
-    query: Pick<SpendingReportQuery | YearlySpendingQuery, 'mode' | 'includePipeline'>,
+    query: Pick<
+      SpendingReportQuery | YearlySpendingQuery,
+      'mode' | 'includePipeline'
+    >,
   ): ExpenseStatus[] {
     return resolveReportStatuses({
       mode: query.mode,

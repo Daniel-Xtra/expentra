@@ -1,5 +1,8 @@
 import { ForbiddenException } from '@nestjs/common';
-import { isSuperAdminUser, SYSTEM_ROLES } from 'src/database/constants/system-roles';
+import {
+  isSuperAdminUser,
+  SYSTEM_ROLES,
+} from 'src/database/constants/system-roles';
 import { Role } from 'src/database/entities/role.entity';
 import type { IAuthUser } from 'src/definition';
 
@@ -9,6 +12,8 @@ export function assertCanAssignRole(actor: IAuthUser, role: Role): void {
   }
 
   if (!isSuperAdminUser(actor)) {
-    throw new ForbiddenException('Only super administrators can assign the super admin role');
+    throw new ForbiddenException(
+      'Only super administrators can assign the super admin role',
+    );
   }
 }

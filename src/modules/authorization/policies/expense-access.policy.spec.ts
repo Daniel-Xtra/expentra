@@ -72,9 +72,9 @@ describe('ExpenseAccessPolicy', () => {
     evaluator.hasPermission.mockReturnValue(false);
     const authUser = user({ managedDepartmentIds: [5] });
 
-    expect(
-      policy.canReadExpense(authUser, expense({ departmentId: 5 })),
-    ).toBe(true);
+    expect(policy.canReadExpense(authUser, expense({ departmentId: 5 }))).toBe(
+      true,
+    );
   });
 
   it('allows owners to read own expenses with self read permission', () => {

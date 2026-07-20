@@ -11,7 +11,11 @@ import { SYSTEM_ROLES } from 'src/database/constants/system-roles';
 import { Permission } from 'src/database/entities/permission.entity';
 import { Role } from 'src/database/entities/role.entity';
 import { User } from 'src/database/entities/user.entity';
-import { escapeLikePattern, ilikeTerm, parsePositiveIntId } from 'src/core/utils/helper';
+import {
+  escapeLikePattern,
+  ilikeTerm,
+  parsePositiveIntId,
+} from 'src/core/utils/helper';
 import { findEntityByReference } from 'src/core/utils/entity-reference.repository';
 import { AuthContextCacheService } from 'src/core/auth/auth-context-cache.service';
 import { DomainEventPublisher } from 'src/core/outbox/services/domain-event.publisher';
@@ -87,7 +91,9 @@ export class RoleService implements IRoleService {
         template.permissionNames,
       );
       return this.setPermissions(actor, saved.reference, {
-        permissionReferences: permissions.map((permission) => permission.reference),
+        permissionReferences: permissions.map(
+          (permission) => permission.reference,
+        ),
       });
     }
 
@@ -278,7 +284,9 @@ export class RoleService implements IRoleService {
     );
 
     return this.setPermissions(actor, reference, {
-      permissionReferences: permissions.map((permission) => permission.reference),
+      permissionReferences: permissions.map(
+        (permission) => permission.reference,
+      ),
     });
   }
 

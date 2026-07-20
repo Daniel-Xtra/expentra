@@ -8,8 +8,7 @@ import {
   UpdateDateColumn,
   BeforeInsert,
 } from 'typeorm';
-import {
-  ParentPermission } from './parent-permission.entity';
+import { ParentPermission } from './parent-permission.entity';
 import { User } from './user.entity';
 import { Exclude } from 'class-transformer';
 import { EntityReferencePrefix } from '../constants/entity-reference-prefix';

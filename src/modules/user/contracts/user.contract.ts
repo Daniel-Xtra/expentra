@@ -58,7 +58,10 @@ export interface IUserService {
   findAuthContext(reference: string): Promise<User | null>;
   markEmailVerified(id: number): Promise<void>;
   create(userData: Partial<User>): Promise<User>;
-  createWithHash(data: CreateUserWithHashInput, manager?: EntityManager): Promise<User>;
+  createWithHash(
+    data: CreateUserWithHashInput,
+    manager?: EntityManager,
+  ): Promise<User>;
   createSsoUser(data: {
     email: string;
     authProvider: string;

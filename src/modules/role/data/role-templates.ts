@@ -66,24 +66,29 @@ export const ROLE_TEMPLATES: readonly RoleTemplate[] = [
   {
     key: 'hr_admin',
     name: 'HR administrator',
-    description: 'Manage employees and departments (users join via self sign-up).',
+    description:
+      'Manage employees and departments (users join via self sign-up).',
     permissionNames: HR_ADMIN_PERMISSION_NAMES,
   },
   {
     key: 'finance_manager',
     name: 'Finance manager',
-    description: 'Approve expenses, reimburse, run reports, and manage policies.',
+    description:
+      'Approve expenses, reimburse, run reports, and manage policies.',
     permissionNames: FINANCE_MANAGER_PERMISSION_NAMES,
   },
   {
     key: 'platform_admin',
     name: 'Platform administrator',
-    description: 'Manage roles, approval workflow configuration, and audit access.',
+    description:
+      'Manage roles, approval workflow configuration, and audit access.',
     permissionNames: PLATFORM_ADMIN_PERMISSION_NAMES,
   },
 ] as const;
 
-const TEMPLATE_BY_KEY = new Map(ROLE_TEMPLATES.map((template) => [template.key, template]));
+const TEMPLATE_BY_KEY = new Map(
+  ROLE_TEMPLATES.map((template) => [template.key, template]),
+);
 
 export function findRoleTemplate(key: string): RoleTemplate | undefined {
   return TEMPLATE_BY_KEY.get(key);

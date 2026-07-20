@@ -65,18 +65,18 @@ describe('ApprovalAccessPolicy', () => {
     evaluator.hasPermission.mockReturnValue(false);
     const authUser = user({ managedDepartmentIds: [5] });
 
-    expect(policy.canDecideOnExpense(authUser, expense({ departmentId: 5 }))).toBe(
-      true,
-    );
+    expect(
+      policy.canDecideOnExpense(authUser, expense({ departmentId: 5 })),
+    ).toBe(true);
   });
 
   it('denies department managers for other departments', () => {
     evaluator.hasPermission.mockReturnValue(false);
     const authUser = user({ managedDepartmentIds: [5] });
 
-    expect(policy.canDecideOnExpense(authUser, expense({ departmentId: 9 }))).toBe(
-      false,
-    );
+    expect(
+      policy.canDecideOnExpense(authUser, expense({ departmentId: 9 })),
+    ).toBe(false);
   });
 
   it('treats managedDepartmentIds as org-grant approval path', () => {

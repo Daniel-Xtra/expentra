@@ -15,7 +15,7 @@ export async function runWithConcurrency<T>(
       while (nextIndex < items.length) {
         const currentIndex = nextIndex;
         nextIndex += 1;
-        await worker(items[currentIndex]!);
+        await worker(items[currentIndex]);
       }
     }),
   );

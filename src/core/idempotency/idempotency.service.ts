@@ -14,11 +14,19 @@ export type IdempotencyRecord = {
 export class IdempotencyService {
   constructor(private readonly redisService: RedisService) {}
 
-  private buildKey(userId: number, routeKey: string, idempotencyKey: string): string {
+  private buildKey(
+    userId: number,
+    routeKey: string,
+    idempotencyKey: string,
+  ): string {
     return `idempotency:${userId}:${routeKey}:${idempotencyKey}`;
   }
 
-  private buildLockKey(userId: number, routeKey: string, idempotencyKey: string): string {
+  private buildLockKey(
+    userId: number,
+    routeKey: string,
+    idempotencyKey: string,
+  ): string {
     return `idempotency:lock:${userId}:${routeKey}:${idempotencyKey}`;
   }
 

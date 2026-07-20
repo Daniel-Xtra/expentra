@@ -10,18 +10,25 @@ import {
 export class BudgetReconciliationProcessor extends WorkerHost {
   private readonly logger = new Logger(BudgetReconciliationProcessor.name);
 
-  constructor(@Inject(BUDGET_SERVICE) private readonly budgetService: IBudgetService) {
+  constructor(
+    @Inject(BUDGET_SERVICE) private readonly budgetService: IBudgetService,
+  ) {
     super();
   }
 
   async process(): Promise<void> {
-    this.logger.log('Starting scheduled budget committed-amount reconciliation');
+    this.logger.log(
+      'Starting scheduled budget committed-amount reconciliation',
+    );
     await this.budgetService.reconcileAllCommittedAmounts();
     this.logger.log('Budget committed-amount reconciliation completed');
   }
 
   @OnWorkerEvent('failed')
-  onFailed(_job: Parameters<WorkerHost['process']>[0] | undefined, error: Error): void {
+  onFailed(
+    _job: Parameters<WorkerHost['process']>[0] | undefined,
+    error: Error,
+  ): void {
     this.logger.error(
       `Budget reconciliation job failed after max attempts: ${error.message}`,
     );

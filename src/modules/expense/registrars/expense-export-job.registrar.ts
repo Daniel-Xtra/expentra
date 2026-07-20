@@ -28,17 +28,18 @@ export class ExpenseExportJobRegistrar implements OnModuleInit {
         switch (request.jobType) {
           case ExportJobType.EXPENSE_PERSONAL_XLSX:
           case ExportJobType.EXPENSE_PERSONAL_CSV: {
-            const csv = await this.expenseService.buildPersonalExpensesExportCsv(
-              authUser,
-              request.params as never,
-            );
+            const csv =
+              await this.expenseService.buildPersonalExpensesExportCsv(
+                authUser,
+                request.params,
+              );
             return excelExportFromCsv(csv, 'my-expenses.xlsx');
           }
           case ExportJobType.EXPENSE_ALL_XLSX:
           case ExportJobType.EXPENSE_ALL_CSV: {
             const csv = await this.expenseService.buildAllExpensesExportCsv(
               authUser,
-              request.params as never,
+              request.params,
             );
             return excelExportFromCsv(csv, 'expenses.xlsx');
           }

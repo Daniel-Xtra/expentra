@@ -1,7 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import type { Queue } from 'bullmq';
-import { OUTBOX_RELAY_QUEUE, DOMAIN_EVENT_QUEUE } from 'src/core/outbox/constants/outbox-queue.constants';
+import {
+  OUTBOX_RELAY_QUEUE,
+  DOMAIN_EVENT_QUEUE,
+} from 'src/core/outbox/constants/outbox-queue.constants';
 import { EXPORT_QUEUE } from 'src/modules/export/constants/export-queue.constants';
 import { EMAIL_NOTIFICATION_QUEUE } from 'src/modules/notification/constants/notification-queue';
 import { APPROVAL_ESCALATION_QUEUE } from 'src/modules/approval/constants/approval-queue';

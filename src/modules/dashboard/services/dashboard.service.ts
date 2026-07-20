@@ -465,7 +465,10 @@ export class DashboardService implements IDashboardService {
   ): Partial<Record<ExpenseCategory, number>> {
     const amounts: Partial<Record<ExpenseCategory, number>> = {};
     const normalized = Object.fromEntries(
-      Object.entries(row ?? {}).map(([key, value]) => [key.toLowerCase(), value]),
+      Object.entries(row ?? {}).map(([key, value]) => [
+        key.toLowerCase(),
+        value,
+      ]),
     );
 
     for (const category of Object.values(ExpenseCategory)) {
@@ -502,11 +505,13 @@ export class DashboardService implements IDashboardService {
       this.appendCategoryAmountSelects(qb);
     }
 
-    const rows = await qb.getRawMany<{
-      month: string;
-      count: string;
-      total: string;
-    } & Record<string, string | undefined>>();
+    const rows = await qb.getRawMany<
+      {
+        month: string;
+        count: string;
+        total: string;
+      } & Record<string, string | undefined>
+    >();
     const byMonth = new Map(
       rows.map((row) => [
         parseInt(row.month, 10),
@@ -555,11 +560,13 @@ export class DashboardService implements IDashboardService {
       this.appendCategoryAmountSelects(qb);
     }
 
-    const rows = await qb.getRawMany<{
-      week: string;
-      count: string;
-      total: string;
-    } & Record<string, string | undefined>>();
+    const rows = await qb.getRawMany<
+      {
+        week: string;
+        count: string;
+        total: string;
+      } & Record<string, string | undefined>
+    >();
     const byWeek = new Map(
       rows.map((row) => [
         parseInt(row.week, 10),

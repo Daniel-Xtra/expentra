@@ -1,4 +1,11 @@
-import { Controller, Get, Header, HttpCode, HttpStatus, StreamableFile } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Header,
+  HttpCode,
+  HttpStatus,
+  StreamableFile,
+} from '@nestjs/common';
 import { AllowAuthenticated } from 'src/core/decorators/allow-authenticated.decorator';
 import { AuthUser } from 'src/core/decorators/auth-user.decorator';
 import type { IAuthUser } from 'src/definition';

@@ -24,7 +24,7 @@ export class DashboardExportJobRegistrar implements OnModuleInit {
       generate: async (request, authUser) => {
         const csv = await this.dashboardService.exportPersonalDashboardCsv(
           authUser,
-          request.params as never,
+          request.params,
         );
         return excelExportFromCsv(csv, 'personal-expense-summary.xlsx');
       },

@@ -106,9 +106,8 @@ export class OidcService {
   }): Promise<OidcTokenResponse> {
     const discovery = await this.getDiscovery();
     const clientId = this.configService.getOrThrow<string>('SSO_CLIENT_ID');
-    const clientSecret = this.configService.getOrThrow<string>(
-      'SSO_CLIENT_SECRET',
-    );
+    const clientSecret =
+      this.configService.getOrThrow<string>('SSO_CLIENT_SECRET');
 
     const body = new URLSearchParams({
       grant_type: 'authorization_code',
@@ -130,7 +129,9 @@ export class OidcService {
 
     if (!response.ok) {
       const detail = await safeReadText(response);
-      this.logger.warn(`OIDC token exchange failed: ${response.status} ${detail}`);
+      this.logger.warn(
+        `OIDC token exchange failed: ${response.status} ${detail}`,
+      );
       throw new ServiceUnavailableException(
         'SSO token exchange failed. Contact an administrator.',
       );

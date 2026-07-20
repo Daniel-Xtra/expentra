@@ -11,9 +11,7 @@ import type {
   PaginatedDepartmentUsersResult,
   UpdateDepartmentInput,
 } from '../types/department.types';
-import type {
-  DepartmentDetailSummary,
-} from '../types/department-response.types';
+import type { DepartmentDetailSummary } from '../types/department-response.types';
 
 export const DEPARTMENT_SERVICE = Symbol('DEPARTMENT_SERVICE');
 

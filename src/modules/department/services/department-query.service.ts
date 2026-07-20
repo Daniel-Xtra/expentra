@@ -268,7 +268,9 @@ export class DepartmentQueryService {
         headcount: parseInt(String(row.headcount ?? '0'), 10) || 0,
         pendingApprovalCount:
           parseInt(
-            String(row.pending_approval_count ?? row.pendingApprovalCount ?? '0'),
+            String(
+              row.pending_approval_count ?? row.pendingApprovalCount ?? '0',
+            ),
             10,
           ) || 0,
         hasBudget,

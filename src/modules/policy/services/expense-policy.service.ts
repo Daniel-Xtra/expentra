@@ -74,7 +74,7 @@ export class ExpensePolicyService implements IExpensePolicyService {
         input.config,
       );
       policy.ruleType = ExpensePolicyRuleType.CONDITIONAL;
-      policy.config = config as unknown as Record<string, unknown>;
+      policy.config = config;
     }
     if (input.isActive !== undefined) {
       policy.isActive = input.isActive;

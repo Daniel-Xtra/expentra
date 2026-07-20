@@ -14,9 +14,7 @@ import { AuthUser } from 'src/core/decorators/auth-user.decorator';
 import { AllowAuthenticated } from 'src/core/decorators/allow-authenticated.decorator';
 import { EntityReferencePipe } from 'src/core/pipes/entity-reference.pipe';
 import type { IAuthUser } from 'src/definition';
-import {
-  RequirePermissionByName,
-} from 'src/modules/authorization';
+import { RequirePermissionByName } from 'src/modules/authorization';
 import { successRequestResponse } from 'src/core/utils/helper';
 import { USER_SERVICE, type IUserService } from '../contracts/user.contract';
 import { AdminUpdateUserDto } from '../dtos/admin-update-user.dto';
@@ -137,11 +135,7 @@ export class UserController {
     @Body() dto: AdminUpdateUserDto,
   ) {
     const target = await this.userService.findOneByReference(reference);
-    const user = await this.userService.adminUpdate(
-      authUser,
-      target.id,
-      dto,
-    );
+    const user = await this.userService.adminUpdate(authUser, target.id, dto);
     const isDepartmentManager = await this.userService.isUserDepartmentManager(
       user.id,
     );

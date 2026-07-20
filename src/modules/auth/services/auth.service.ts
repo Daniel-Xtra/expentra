@@ -176,7 +176,9 @@ export class AuthService implements IAuthService {
     const enabled = this.oidcService.isEnabled();
     return {
       enabled,
-      buttonLabel: enabled ? this.oidcService.getButtonLabel() : 'Sign in with SSO',
+      buttonLabel: enabled
+        ? this.oidcService.getButtonLabel()
+        : 'Sign in with SSO',
     };
   }
 
@@ -269,7 +271,9 @@ export class AuthService implements IAuthService {
       );
     }
 
-    const user = await this.userService.findOneByReference(stored.userReference);
+    const user = await this.userService.findOneByReference(
+      stored.userReference,
+    );
     if (!user) {
       throw new BadRequestException('User not found');
     }
@@ -325,7 +329,9 @@ export class AuthService implements IAuthService {
           'Account has been suspended, please contact support.',
         );
       }
-      await this.userService.syncSsoProfile(existingByExternal.id, { avatarUrl });
+      await this.userService.syncSsoProfile(existingByExternal.id, {
+        avatarUrl,
+      });
       return this.userService.findOne(existingByExternal.id);
     }
 

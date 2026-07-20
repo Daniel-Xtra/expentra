@@ -15,6 +15,9 @@ export class AddDepartmentManagerForeignKey1700000008000 implements MigrationInt
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.dropForeignKey('departments', 'FK_departments_manager_id');
+    await queryRunner.dropForeignKey(
+      'departments',
+      'FK_departments_manager_id',
+    );
   }
 }

@@ -1,8 +1,5 @@
 import type { AppAbility } from '../ability/app-ability';
-import {
-  PermissionAction,
-  PermissionResource,
-} from '../constants/permissions';
+import { PermissionAction, PermissionResource } from '../constants/permissions';
 
 /** Route policy: user can approve or reject expenses (role or org grant). */
 export function canDecideOnApprovalAbility(ability: AppAbility): boolean {

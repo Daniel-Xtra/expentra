@@ -79,7 +79,11 @@ export function calendarDateParts(
     const month = Number(parts.find((p) => p.type === 'month')?.value);
     const day = Number(parts.find((p) => p.type === 'day')?.value);
 
-    if (Number.isFinite(year) && Number.isFinite(month) && Number.isFinite(day)) {
+    if (
+      Number.isFinite(year) &&
+      Number.isFinite(month) &&
+      Number.isFinite(day)
+    ) {
       return { year, month, day };
     }
   } catch {

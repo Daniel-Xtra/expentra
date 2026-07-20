@@ -25,7 +25,10 @@ function stableStringify(value: unknown): string {
 }
 
 export function hashRequestBody(body: unknown): string {
-  return crypto.createHash('sha256').update(stableStringify(body)).digest('hex');
+  return crypto
+    .createHash('sha256')
+    .update(stableStringify(body))
+    .digest('hex');
 }
 
 export function buildIdempotencyStorageKey(

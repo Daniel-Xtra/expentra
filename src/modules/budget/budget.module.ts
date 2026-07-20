@@ -39,6 +39,11 @@ import { BudgetExportJobRegistrar } from './registrars/budget-export-job.registr
     BudgetExportJobRegistrar,
     { provide: BUDGET_SERVICE, useExisting: BudgetService },
   ],
-  exports: [BudgetService, BUDGET_SERVICE, BudgetAlertService, ExpenseBudgetImpactListener],
+  exports: [
+    BudgetService,
+    BUDGET_SERVICE,
+    BudgetAlertService,
+    ExpenseBudgetImpactListener,
+  ],
 })
 export class BudgetModule {}

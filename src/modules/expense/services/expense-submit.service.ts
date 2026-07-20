@@ -21,9 +21,7 @@ import {
 } from 'src/modules/policy/contracts/policy.contract';
 import type { ExpenseSubmitCheckResult } from '../types/expense-submit-check.types';
 import type { IAuthUser } from 'src/definition';
-import {
-  EXPENSE_BUDGET_COMMITTED_EVENT,
-} from '../events/expense-budget.events';
+import { EXPENSE_BUDGET_COMMITTED_EVENT } from '../events/expense-budget.events';
 import { ExpenseMutationSupport } from './expense-mutation.support';
 import { ExpenseQueryService } from './expense-query.service';
 

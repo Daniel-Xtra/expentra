@@ -4,7 +4,12 @@ describe('role templates', () => {
   it('lists known templates', () => {
     const keys = listRoleTemplates().map((template) => template.key);
     expect(keys).toEqual(
-      expect.arrayContaining(['staff', 'hr_admin', 'finance_manager', 'platform_admin']),
+      expect.arrayContaining([
+        'staff',
+        'hr_admin',
+        'finance_manager',
+        'platform_admin',
+      ]),
     );
   });
 

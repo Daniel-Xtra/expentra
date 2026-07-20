@@ -18,7 +18,12 @@ export class CreateNotificationPreferencesTable1700000017000 implements Migratio
         name: 'notification_preferences',
         columns: [
           INTEGER_PK_COLUMN,
-          { name: 'user_id', type: 'integer', isNullable: false, isUnique: true },
+          {
+            name: 'user_id',
+            type: 'integer',
+            isNullable: false,
+            isUnique: true,
+          },
           { name: 'email_enabled', type: 'boolean', default: true },
           { name: 'in_app_enabled', type: 'boolean', default: true },
           {

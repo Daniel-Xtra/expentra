@@ -15,11 +15,7 @@ import { ExportService } from './services/export.service';
     forwardRef(() => NotificationModule),
     forwardRef(() => UserModule),
   ],
-  providers: [
-    ExportJobHandlerRegistry,
-    ExportService,
-    ExportGenerationService,
-  ],
+  providers: [ExportJobHandlerRegistry, ExportService, ExportGenerationService],
   exports: [ExportService, ExportJobHandlerRegistry, ExportGenerationService],
 })
 export class ExportModule {}

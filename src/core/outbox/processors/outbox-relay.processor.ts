@@ -23,9 +23,7 @@ export class OutboxRelayProcessor extends WorkerHost {
     super();
   }
 
-  async process(
-    job: Parameters<WorkerHost['process']>[0],
-  ): Promise<void> {
+  async process(job: Parameters<WorkerHost['process']>[0]): Promise<void> {
     const jobName = job?.name ?? 'poll';
 
     if (jobName === 'reconcile') {
@@ -47,7 +45,9 @@ export class OutboxRelayProcessor extends WorkerHost {
       }
     }
 
-    this.logger.debug(`Relayed ${events.length} outbox event(s) to domain queue`);
+    this.logger.debug(
+      `Relayed ${events.length} outbox event(s) to domain queue`,
+    );
   }
 
   /**

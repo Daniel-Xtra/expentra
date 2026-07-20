@@ -266,7 +266,7 @@ export class ExpenseCommentService {
         .map((approval) => ({
           type: 'APPROVAL' as const,
           reference: approval.reference,
-          occurredAt: approval.decidedAt!,
+          occurredAt: approval.decidedAt,
           actor: approval.approver
             ? {
                 reference: approval.approver.reference,
@@ -350,7 +350,7 @@ export class ExpenseCommentService {
       (comment) =>
         comment.userId === approval.approverId &&
         comment.body.trim() === body &&
-        Math.abs(comment.createdAt.getTime() - approval.decidedAt!.getTime()) <
+        Math.abs(comment.createdAt.getTime() - approval.decidedAt.getTime()) <
           60_000,
     );
   }
@@ -358,7 +358,7 @@ export class ExpenseCommentService {
   private toCommentFromRejectionApproval(
     approval: ExpenseApproval,
   ): ExpenseComment {
-    const decidedAt = approval.decidedAt!;
+    const decidedAt = approval.decidedAt;
     const body = approval.comment!.trim();
 
     return {

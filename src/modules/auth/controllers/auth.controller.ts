@@ -137,11 +137,19 @@ export class AuthController {
   @Get('sso/status')
   @HttpCode(HttpStatus.OK)
   getSsoStatus(): IResponse {
-    return successRequestResponse('SSO status', this.authService.getSsoStatus());
+    return successRequestResponse(
+      'SSO status',
+      this.authService.getSsoStatus(),
+    );
   }
 
   @Public()
-  @RateLimit({ limit: 20, ttl: 60, resource: 'auth.sso.start', failClosed: true })
+  @RateLimit({
+    limit: 20,
+    ttl: 60,
+    resource: 'auth.sso.start',
+    failClosed: true,
+  })
   @Get('sso/start')
   async startSso(@Res() res: Response): Promise<void> {
     try {

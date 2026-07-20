@@ -181,10 +181,7 @@ export class ReceiptService implements IReceiptService {
       expenseReference,
       receiptReference,
     );
-    await this.storage.delete(
-      attachment.objectKey,
-      attachment.resourceType,
-    );
+    await this.storage.delete(attachment.objectKey, attachment.resourceType);
     await this.attachmentRepository.delete({
       id: attachment.id,
       expenseId: expense.id,

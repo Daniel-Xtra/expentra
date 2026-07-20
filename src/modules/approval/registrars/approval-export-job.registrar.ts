@@ -24,7 +24,7 @@ export class ApprovalExportJobRegistrar implements OnModuleInit {
       generate: async (request) => {
         const csv =
           await this.approvalLevelService.buildApprovalLevelsExportCsv(
-            request.params as never,
+            request.params,
           );
         return excelExportFromCsv(csv, 'approval-levels.xlsx');
       },

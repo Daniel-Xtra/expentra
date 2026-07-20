@@ -21,7 +21,11 @@ import {
   resolveBudgetYear,
 } from 'src/modules/budget/utils/budget-period.util';
 import type { IDelegationService } from '../contracts/delegation.contract';
-import type { CreateDelegationInput, ListDelegationsQuery, PaginatedDelegationsResult } from '../types/delegation.types';
+import type {
+  CreateDelegationInput,
+  ListDelegationsQuery,
+  PaginatedDelegationsResult,
+} from '../types/delegation.types';
 
 @Injectable()
 export class DelegationService implements IDelegationService {
@@ -263,11 +267,15 @@ export class DelegationService implements IDelegationService {
     }
 
     if (compareCalendarDates(startsAt, now, timeZone) < 0) {
-      throw new BadRequestException('Delegation start date cannot be in the past');
+      throw new BadRequestException(
+        'Delegation start date cannot be in the past',
+      );
     }
 
     if (compareCalendarDates(endsAt, now, timeZone) < 0) {
-      throw new BadRequestException('Delegation end date cannot be in the past');
+      throw new BadRequestException(
+        'Delegation end date cannot be in the past',
+      );
     }
   }
 }

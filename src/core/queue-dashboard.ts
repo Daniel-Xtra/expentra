@@ -120,7 +120,9 @@ export function setupQueueDashboard(
   }
 
   const logger = new Logger('QueueDashboard');
-  const connection = redisOptionsFromUrl(config.getOrThrow<string>('REDIS_URL'));
+  const connection = redisOptionsFromUrl(
+    config.getOrThrow<string>('REDIS_URL'),
+  );
   const credentials = resolveDashboardCredentials(config);
   const serverAdapter = new ExpressAdapter();
 

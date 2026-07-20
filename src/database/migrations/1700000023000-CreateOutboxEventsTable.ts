@@ -1,6 +1,9 @@
 import { MigrationInterface, QueryRunner, Table } from 'typeorm';
 
-import { CREATED_AT_COLUMN, INTEGER_PK_COLUMN } from '../helpers/migration.helpers';
+import {
+  CREATED_AT_COLUMN,
+  INTEGER_PK_COLUMN,
+} from '../helpers/migration.helpers';
 
 export class CreateOutboxEventsTable1700000023000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {

@@ -33,8 +33,8 @@ describe('assertCanAssignRole', () => {
   });
 
   it('blocks non-super-admin from assigning super admin role', () => {
-    expect(() =>
-      assertCanAssignRole(actor('staff'), superAdminRole()),
-    ).toThrow(ForbiddenException);
+    expect(() => assertCanAssignRole(actor('staff'), superAdminRole())).toThrow(
+      ForbiddenException,
+    );
   });
 });
