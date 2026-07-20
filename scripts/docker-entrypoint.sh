@@ -38,22 +38,27 @@ validate_environment() {
     require_env POSTGRES_USER
     require_env POSTGRES_PASSWORD
 
-    # Nest uses REDIS_URL; derive host/port for readiness waits when unset.
+    require_env REDIS_URL
+
+    # Nest connects via REDIS_URL; host/port are only for readiness waits.
     if [ -z "${REDIS_HOST:-}" ] || [ -z "${REDIS_PORT:-}" ]; then
-        if [ -n "${REDIS_URL:-}" ]; then
-            # redis://[:password@]host:port[/db]
-            _redis_no_scheme="${REDIS_URL#*://}"
-            _redis_no_auth="${_redis_no_scheme##*@}"
-            _redis_hostport="${_redis_no_auth%%/*}"
-            REDIS_HOST="${REDIS_HOST:-${_redis_hostport%%:*}}"
+        # redis://[:password@]host:port[/db]
+        _redis_no_scheme="${REDIS_URL#*://}"
+        _redis_no_auth="${_redis_no_scheme##*@}"
+        _redis_hostport="${_redis_no_auth%%/*}"
+        if [ -z "${REDIS_HOST:-}" ]; then
+            REDIS_HOST="${_redis_hostport%%:*}"
+        fi
+        if [ -z "${REDIS_PORT:-}" ]; then
             _redis_port_part="${_redis_hostport##*:}"
             if [ "${_redis_port_part}" != "${_redis_hostport}" ]; then
-                REDIS_PORT="${REDIS_PORT:-${_redis_port_part}}"
+                REDIS_PORT="${_redis_port_part}"
             else
-                REDIS_PORT="${REDIS_PORT:-6379}"
+                REDIS_PORT="6379"
             fi
-            export REDIS_HOST REDIS_PORT
         fi
+        export REDIS_HOST REDIS_PORT
+        log "Derived REDIS_HOST=${REDIS_HOST} REDIS_PORT=${REDIS_PORT} from REDIS_URL"
     fi
 
     require_env REDIS_HOST
