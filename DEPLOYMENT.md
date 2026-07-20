@@ -53,7 +53,7 @@ Use the **same secret names** in both environments:
 | `ENV_FILE_B64` | Base64 of that environment’s full `.env` file (may include a placeholder `IMAGE_NAME`) |
 | `DOCKERHUB_USERNAME` | Docker Hub username |
 | `DOCKERHUB_TOKEN` | Docker Hub access token (read/write for push; read for VPS pull) |
-| `DOCKERHUB_IMAGE` | Image repository without tag (e.g. `youruser/expentra`) |
+| `DOCKERHUB_IMAGE` | Image repository without tag (e.g. `youruser/expentra`). Prefer an Environment **Variable** (not a Secret) — values that include secrets are redacted from job outputs. |
 | `VPS_HOST` | VPS hostname or IP |
 | `VPS_USER` | SSH user (must be in the `docker` group) |
 | `VPS_SSH_KEY` | Private SSH key for that user |
