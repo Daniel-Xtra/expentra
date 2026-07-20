@@ -38,6 +38,24 @@ validate_environment() {
     require_env POSTGRES_USER
     require_env POSTGRES_PASSWORD
 
+    # Nest uses REDIS_URL; derive host/port for readiness waits when unset.
+    if [ -z "${REDIS_HOST:-}" ] || [ -z "${REDIS_PORT:-}" ]; then
+        if [ -n "${REDIS_URL:-}" ]; then
+            # redis://[:password@]host:port[/db]
+            _redis_no_scheme="${REDIS_URL#*://}"
+            _redis_no_auth="${_redis_no_scheme##*@}"
+            _redis_hostport="${_redis_no_auth%%/*}"
+            REDIS_HOST="${REDIS_HOST:-${_redis_hostport%%:*}}"
+            _redis_port_part="${_redis_hostport##*:}"
+            if [ "${_redis_port_part}" != "${_redis_hostport}" ]; then
+                REDIS_PORT="${REDIS_PORT:-${_redis_port_part}}"
+            else
+                REDIS_PORT="${REDIS_PORT:-6379}"
+            fi
+            export REDIS_HOST REDIS_PORT
+        fi
+    fi
+
     require_env REDIS_HOST
     require_env REDIS_PORT
 
