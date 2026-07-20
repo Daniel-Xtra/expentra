@@ -124,7 +124,7 @@ jobs:
           VPS_USER: ${{ secrets.VPS_USER }}
         run: |
           PREV="$(ssh "${VPS_USER}@${VPS_HOST}" \
-            "grep -E '^IMAGE_NAME=' '/opt/expentra/env/${ENV_FILE}' 2>/dev/null | cut -d= -f2- || true")"
+            "grep -E '^IMAGE_NAME=' '/opt/expentra-staging/env/${ENV_FILE}' 2>/dev/null | cut -d= -f2- || true")"
           echo "image=${PREV}" >> "$GITHUB_OUTPUT"
           echo "Previous IMAGE_NAME=${PREV:-<none>}"
 
@@ -139,8 +139,8 @@ jobs:
             "${VPS_USER}@${VPS_HOST}:/opt/expentra-staging/compose/"
           rsync -az --delete \
             deploy/scripts/ \
-            "${VPS_USER}@${VPS_HOST}:/opt/expentra/scripts/"
-          scp /tmp/expentra.env "${VPS_USER}@${VPS_HOST}:/opt/expentra/env/${ENV_FILE}"
+            "${VPS_USER}@${VPS_HOST}:/opt/expentra-staging/scripts/"
+          scp /tmp/expentra.env "${VPS_USER}@${VPS_HOST}:/opt/expentra-staging/env/${ENV_FILE}"
           ssh "${VPS_USER}@${VPS_HOST}" \
             "chmod 600 '/opt/expentra-staging/env/${ENV_FILE}' && rm -f '/opt/expentra-staging/compose/.env'"
 
@@ -165,7 +165,7 @@ jobs:
           set -euo pipefail
 
           echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
-          cd /opt/expentra/compose
+          cd /opt/expentra-staging/compose
           ENV_PATH="../env/${ENV_FILE}"
           COMPOSE=(docker compose --env-file "${ENV_PATH}" -f docker-compose.yml -f "${COMPOSE_OVERRIDE}")
 
