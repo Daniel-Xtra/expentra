@@ -217,6 +217,7 @@ jobs:
 
           echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
 
+          # Interpolate ${IMAGE_NAME} from shell + compose/.env only (not full app --env-file).
           export IMAGE_NAME="${NEW_IMAGE}"
           grep -vE '^IMAGE_NAME=' "${ENV_PATH}" > "${ENV_PATH}.tmp" || true
           printf 'IMAGE_NAME=%s\n' "${IMAGE_NAME}" >> "${ENV_PATH}.tmp"
@@ -224,7 +225,7 @@ jobs:
           printf 'IMAGE_NAME=%s\n' "${IMAGE_NAME}" > .env
           chmod 600 .env "${ENV_PATH}"
 
-          COMPOSE=(docker compose --env-file "${ENV_PATH}" -f docker-compose.yml -f "${COMPOSE_OVERRIDE}")
+          COMPOSE=(docker compose -f docker-compose.yml -f "${COMPOSE_OVERRIDE}")
 
           set_image() {
             local image="$1"
@@ -234,6 +235,18 @@ jobs:
             mv "${ENV_PATH}.tmp" "${ENV_PATH}"
             printf 'IMAGE_NAME=%s\n' "${image}" > .env
             printf '%s\n' "${image}" > "${IMAGE_FILE}"
+          }
+
+          assert_compose_image() {
+            local expected="$1"
+            echo "Compose resolved images:"
+            "${COMPOSE[@]}" config --images
+            if ! "${COMPOSE[@]}" config --images | grep -qxF "${expected}"; then
+              echo "::error::Compose did not resolve IMAGE_NAME to ${expected}"
+              echo "shell IMAGE_NAME=${IMAGE_NAME:-<unset>}"
+              echo "compose/.env: $(cat .env 2>/dev/null || true)"
+              exit 1
+            fi
           }
 
           rollback_app() {
@@ -246,6 +259,7 @@ jobs:
             fi
             echo "Rolling back application image to ${PREVIOUS_IMAGE} ..."
             set_image "${PREVIOUS_IMAGE}"
+            assert_compose_image "${PREVIOUS_IMAGE}"
             "${COMPOSE[@]}" pull api worker
             docker rm -f expentra-api expentra-worker 2>/dev/null || true
             "${COMPOSE[@]}" up -d --force-recreate --remove-orphans --wait --wait-timeout 120 api worker postgres-backup
@@ -275,7 +289,7 @@ jobs:
           echo "Using IMAGE_NAME=${IMAGE_NAME}"
           echo "Previous IMAGE_NAME=${PREVIOUS_IMAGE:-<none>}"
           grep -E '^IMAGE_NAME=' "${ENV_PATH}" || true
-          "${COMPOSE[@]}" config --images
+          assert_compose_image "${NEW_IMAGE}"
 
           "${COMPOSE[@]}" pull api worker migrate
 
