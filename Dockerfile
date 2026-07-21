@@ -96,8 +96,8 @@ EXPOSE 3200
 # ---------------------------------------------------------------
 # Health check
 # ---------------------------------------------------------------
-HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD node -e "fetch('http://localhost:3200/api/health/live').then(() => process.exit(0)).catch(() => process.exit(1))"
+# Deployed health checks live in Compose (http://api:3200/api/health/...).
+# Do not rely on host localhost — the API is not published on the VPS host.
 
 # ---------------------------------------------------------------
 # Application startup

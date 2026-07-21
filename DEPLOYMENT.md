@@ -59,7 +59,9 @@ Use the **same secret names** in both environments:
 | `VPS_SSH_KEY` | Private SSH key for that user |
 | `VPS_KNOWN_HOSTS` | Pinned SSH host keys (output of `ssh-keyscan -H <host>`) |
 
-CI writes one file (`env/.env.production` or `env/.env.staging`), upserts `IMAGE_NAME` to the image just pushed, and runs Compose with `--env-file` so `${IMAGE_NAME}` interpolates from that same file. Compose also gets a tiny `compose/.env` containing only `IMAGE_NAME` for interpolation.
+CI writes one file (`env/.env.production` or `env/.env.staging`), upserts `IMAGE_NAME` to the image just pushed, and also writes `env/.image-name` (read on the VPS so the image is never passed through secret-redacted SSH env). Compose gets a tiny `compose/.env` containing only `IMAGE_NAME` for interpolation. After start, deploy fails if `docker inspect` does not show the new `sha-<commit>` tag.
+
+If migrate/start/health fails, deploy **rolls back** to the previous `IMAGE_NAME` — that is why the VPS can stay on an older `sha-…` after a “failed” deploy. Check the Actions log for `Rolling back application image`.
 
 **Important:** A Docker Hub Autobuild success is not a VPS deploy. Only the GitHub Actions **Deploy Staging** / **Deploy Production** jobs update `/opt/expentra-*/env` and recreate containers. Prefer `DOCKERHUB_IMAGE` as an Environment **variable** (not a secret) so image names are not redacted in Actions.
 
@@ -83,7 +85,7 @@ Example images after push:
 3. Pull image; start Postgres + Redis (`--wait`)  
 4. Run dedicated Compose service: `docker compose run --rm migrate` (`scripts/docker-migrate.sh`)  
 5. Start `api` + `worker` (+ backup) with `--wait`  
-6. HTTP-check `GET /api/health/ready`  
+6. HTTP-check `GET http://api:3200/api/health/ready` on the Compose network (not host localhost)  
 7. On migrate / start / health failure → restore previous `IMAGE_NAME`, restart api/worker, fail the job  
 
 ### Migration safety (important)
@@ -141,7 +143,7 @@ Start from [`.env.example`](.env.example), then set production secrets (JWT, DB 
 1. Install Docker Engine + Compose plugin.
 2. Create deploy user with SSH key auth and membership in the `docker` group.
 3. Ensure `/opt/expentra` is writable by that user.
-4. Open firewall as needed for your edge proxy; do not publish Postgres/Redis publicly.
+4. Open firewall as needed for your edge proxy; do not publish Postgres/Redis publicly. The API is not published on the host (`expose` only) — reach it via your edge proxy or `docker exec`.
 5. Create GitHub Environments `production` and `staging`, add the secrets above to each, then push to `main` / `staging` (or run **Deploy Production** / **Deploy Staging** manually).
 
 First deploy syncs compose/scripts and writes the env file from `ENV_FILE_B64`. Later deploys use pinned `VPS_KNOWN_HOSTS`, the `migrate` Compose service, HTTP `/api/health/ready` checks, and automatic app-image rollback on failure. Old images are **not** pruned automatically.
