@@ -16,7 +16,7 @@ permissions:
 env:
   COMPOSE_OVERRIDE: docker-compose.prod.yml
   ENV_FILE: .env.production
-  HEALTH_READY_URL: http://127.0.0.1:3200/api/health/ready
+  HEALTH_READY_URL: http://api:3200/api/health/ready
 
 jobs:
   build-and-push:
@@ -148,6 +148,7 @@ jobs:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
         run: |
+          set -euo pipefail
           ssh "${VPS_USER}@${VPS_HOST}" "mkdir -p '/opt/expentra-production/compose' '/opt/expentra-production/env' '/opt/expentra-production/scripts'"
           rsync -az --delete \
             deploy/compose/ \
@@ -156,8 +157,14 @@ jobs:
             deploy/scripts/ \
             "${VPS_USER}@${VPS_HOST}:/opt/expentra-production/scripts/"
           scp /tmp/expentra.env "${VPS_USER}@${VPS_HOST}:/opt/expentra-production/env/${ENV_FILE}"
+          scp /tmp/expentra.new-image "${VPS_USER}@${VPS_HOST}:/opt/expentra-production/env/.image-name"
+          if [ -f /tmp/expentra.prev-image ]; then
+            scp /tmp/expentra.prev-image "${VPS_USER}@${VPS_HOST}:/opt/expentra-production/env/.image-name.prev"
+          else
+            ssh "${VPS_USER}@${VPS_HOST}" "rm -f '/opt/expentra-production/env/.image-name.prev'"
+          fi
           ssh "${VPS_USER}@${VPS_HOST}" \
-            "chmod 600 '/opt/expentra-production/env/${ENV_FILE}'"
+            "chmod 600 '/opt/expentra-production/env/${ENV_FILE}' '/opt/expentra-production/env/.image-name'"
 
       - name: Pull, migrate, restart, verify health (rollback on failure)
         env:
@@ -165,24 +172,10 @@ jobs:
           VPS_USER: ${{ secrets.VPS_USER }}
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-          IMAGE_REPOSITORY_SECRET: ${{ secrets.DOCKERHUB_IMAGE }}
-          IMAGE_REPOSITORY_VAR: ${{ vars.DOCKERHUB_IMAGE }}
+          GIT_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          REPO="${IMAGE_REPOSITORY_SECRET:-$IMAGE_REPOSITORY_VAR}"
-          NEW_IMAGE="${REPO}:sha-${GITHUB_SHA}"
-          if [ -f /tmp/expentra.new-image ]; then
-            NEW_IMAGE="$(tr -d '\r\n' < /tmp/expentra.new-image)"
-          fi
-          PREVIOUS_IMAGE=""
-          if [ -f /tmp/expentra.prev-image ]; then
-            PREVIOUS_IMAGE="$(tr -d '\r\n' < /tmp/expentra.prev-image)"
-          fi
-          if [ -z "${NEW_IMAGE}" ] || [ -z "${REPO}" ]; then
-            echo "::error::NEW_IMAGE is empty — cannot deploy (check DOCKERHUB_IMAGE)"
-            exit 1
-          fi
-          echo "Deploying ${NEW_IMAGE} (previous=${PREVIOUS_IMAGE:-<none>})"
+          echo "Expected image tag: sha-${GIT_SHA}"
 
           ssh "${VPS_USER}@${VPS_HOST}" \
             COMPOSE_OVERRIDE="$COMPOSE_OVERRIDE" \
@@ -190,19 +183,39 @@ jobs:
             HEALTH_READY_URL="$HEALTH_READY_URL" \
             DOCKERHUB_USERNAME="$DOCKERHUB_USERNAME" \
             DOCKERHUB_TOKEN="$DOCKERHUB_TOKEN" \
-            PREVIOUS_IMAGE="$PREVIOUS_IMAGE" \
-            NEW_IMAGE="$NEW_IMAGE" \
+            GIT_SHA="$GIT_SHA" \
             'bash -s' <<'REMOTE'
           set -euo pipefail
+
+          cd /opt/expentra-production/compose
+          ENV_PATH="../env/${ENV_FILE}"
+          IMAGE_FILE="../env/.image-name"
+          PREV_FILE="../env/.image-name.prev"
+
+          if [ ! -s "${IMAGE_FILE}" ]; then
+            echo "::error::Missing ${IMAGE_FILE} — sync step did not write the new image name"
+            exit 1
+          fi
+
+          NEW_IMAGE="$(tr -d '\r\n' < "${IMAGE_FILE}")"
+          PREVIOUS_IMAGE=""
+          if [ -s "${PREV_FILE}" ]; then
+            PREVIOUS_IMAGE="$(tr -d '\r\n' < "${PREV_FILE}")"
+          fi
 
           if [ -z "${NEW_IMAGE}" ]; then
             echo "::error::NEW_IMAGE is empty — cannot deploy"
             exit 1
           fi
+          case "${NEW_IMAGE}" in
+            *:sha-"${GIT_SHA}") ;;
+            *)
+              echo "::error::Image file ${NEW_IMAGE} does not match commit sha-${GIT_SHA}"
+              exit 1
+              ;;
+          esac
 
           echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
-          cd /opt/expentra-production/compose
-          ENV_PATH="../env/${ENV_FILE}"
 
           export IMAGE_NAME="${NEW_IMAGE}"
           grep -vE '^IMAGE_NAME=' "${ENV_PATH}" > "${ENV_PATH}.tmp" || true
@@ -220,6 +233,7 @@ jobs:
             printf 'IMAGE_NAME=%s\n' "${image}" >> "${ENV_PATH}.tmp"
             mv "${ENV_PATH}.tmp" "${ENV_PATH}"
             printf 'IMAGE_NAME=%s\n' "${image}" > .env
+            printf '%s\n' "${image}" > "${IMAGE_FILE}"
           }
 
           rollback_app() {
@@ -233,6 +247,7 @@ jobs:
             echo "Rolling back application image to ${PREVIOUS_IMAGE} ..."
             set_image "${PREVIOUS_IMAGE}"
             "${COMPOSE[@]}" pull api worker
+            docker rm -f expentra-api expentra-worker 2>/dev/null || true
             "${COMPOSE[@]}" up -d --force-recreate --remove-orphans --wait --wait-timeout 120 api worker postgres-backup
             echo "Rollback complete (schema migrations are not reverted automatically)."
             return 1
@@ -258,6 +273,7 @@ jobs:
           }
 
           echo "Using IMAGE_NAME=${IMAGE_NAME}"
+          echo "Previous IMAGE_NAME=${PREVIOUS_IMAGE:-<none>}"
           grep -E '^IMAGE_NAME=' "${ENV_PATH}" || true
           "${COMPOSE[@]}" config --images
 
@@ -271,7 +287,9 @@ jobs:
             exit 1
           fi
 
-          if ! "${COMPOSE[@]}" up -d --force-recreate --remove-orphans --wait --wait-timeout 120 api worker postgres-backup; then
+          docker rm -f expentra-api expentra-worker 2>/dev/null || true
+
+          if ! "${COMPOSE[@]}" up -d --force-recreate --pull always --remove-orphans --wait --wait-timeout 120 api worker postgres-backup; then
             rollback_app "Failed to start api/worker"
             exit 1
           fi
@@ -283,5 +301,10 @@ jobs:
 
           echo "Running containers:"
           docker ps --filter name=expentra-api --filter name=expentra-worker --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}'
+          RUNNING_IMAGE="$(docker inspect -f '{{.Config.Image}}' expentra-api)"
+          if [ "${RUNNING_IMAGE}" != "${NEW_IMAGE}" ]; then
+            echo "::error::Container still on ${RUNNING_IMAGE}, expected ${NEW_IMAGE}"
+            exit 1
+          fi
           echo "Production deploy OK — image=${NEW_IMAGE}"
           REMOTE
