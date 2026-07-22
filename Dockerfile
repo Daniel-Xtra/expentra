@@ -5,8 +5,13 @@ FROM node:22-bookworm-slim AS base
 
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
+# Avoid Corepack resolving an unexpected major (e.g. pnpm 11 + ERR_PNPM_IGNORED_BUILDS).
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 
-RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
+RUN corepack enable \
+  && corepack prepare pnpm@9.15.9 --activate \
+  && pnpm --version \
+  && pnpm --version | grep -E '^9\.'
 
 WORKDIR /app
 
@@ -39,8 +44,12 @@ ENV NODE_ENV=production
 
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 
-RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
+RUN corepack enable \
+  && corepack prepare pnpm@9.15.9 --activate \
+  && pnpm --version \
+  && pnpm --version | grep -E '^9\.'
 
 WORKDIR /app
 
