@@ -127,6 +127,9 @@ Use the in-compose service hostnames (not `localhost`):
 | `PORT` | `3200` |
 | `POSTGRES_HOST` | `postgres` (Compose service name) |
 | `POSTGRES_PORT` | `5432` |
+| `POSTGRES_SSL` | `true` (staging/production) |
+| `POSTGRES_SSL_REJECT_UNAUTHORIZED` | `true` |
+| `POSTGRES_SSL_CA` | `/certs/postgres/ca.crt` |
 | `REDIS_HOST` | `redis` |
 | `REDIS_PORT` | `6379` |
 | `REDIS_URL` | `redis://redis:6379` (literal — do not use `${REDIS_HOST}` in the file) |
@@ -143,10 +146,66 @@ Start from [`.env.example`](.env.example), then set production secrets (JWT, DB 
 1. Install Docker Engine + Compose plugin.
 2. Create deploy user with SSH key auth and membership in the `docker` group.
 3. Ensure `/opt/expentra` is writable by that user.
-4. Open firewall as needed for your edge proxy; do not publish Postgres/Redis publicly. The API is not published on the host (`expose` only) — reach it via your edge proxy or `docker exec`.
+4. Open firewall as needed for your edge proxy; do **not** allow inbound `5432`/`6379` from the WAN. Postgres is bound to `127.0.0.1:5432` only (SSH tunnel). The API is not published on the host (`expose` only) — reach it via your edge proxy or `docker exec`.
 5. Create GitHub Environments `production` and `staging`, add the secrets above to each, then push to `main` / `staging` (or run **Deploy Production** / **Deploy Staging** manually).
 
 First deploy syncs compose/scripts and writes the env file from `ENV_FILE_B64`. Later deploys use pinned `VPS_KNOWN_HOSTS`, the `migrate` Compose service, HTTP `/api/health/ready` checks, and automatic app-image rollback on failure. Old images are **not** pruned automatically.
+
+## Database access (TablePlus / pgAdmin)
+
+Postgres stays private. App containers use `POSTGRES_HOST=postgres` and connect with **TLS** (`POSTGRES_SSL=true` + CA). GUI tools connect over **SSH**, then to loopback on the VPS.
+
+### One-time: generate TLS certs on the VPS
+
+Certs live outside git (per environment):
+
+```bash
+# After CI has synced deploy/scripts (or scp the script)
+sudo mkdir -p /opt/expentra-staging/certs/postgres
+sudo sh /opt/expentra-staging/scripts/postgres-tls/generate-certs.sh /opt/expentra-staging/certs/postgres
+
+# Production (separate CA/keys)
+sudo mkdir -p /opt/expentra-production/certs/postgres
+sudo sh /opt/expentra-production/scripts/postgres-tls/generate-certs.sh /opt/expentra-production/certs/postgres
+```
+
+Ensure `server.key` is mode `600` and owned by uid `70` (Postgres Alpine). The script attempts this.
+
+Copy **only** `ca.crt` to your laptop for production TablePlus **VERIFY_CA**. Never commit or share `ca.key` / `server.key`.
+
+### TablePlus / pgAdmin
+
+| Field | Staging | Production |
+|-------|---------|------------|
+| **Over SSH** | on; Server = VPS IP | on; Server = VPS IP |
+| **SSH User / key** | Deploy user | Deploy user |
+| **DB Host** | `127.0.0.1` | `127.0.0.1` |
+| **DB Port** | `5432` | `5432` |
+| **User / password / database** | `POSTGRES_*` from staging env | `POSTGRES_*` from production env |
+| **SSL mode** | **PREFERRED** | **VERIFY_CA** (or REQUIRE) |
+| **CA cert** | optional for PREFERRED | that env’s `ca.crt` |
+
+Do **not** set the DB host to the VPS public IP, and do **not** publish `0.0.0.0:5432`.
+
+Postgres has `ssl=on` but does **not** force `hostssl`-only, so PREFERRED can negotiate TLS and still fall back if needed. The Nest app always requires TLS.
+
+After certs exist and compose/env are updated, recreate services:
+
+```bash
+# Staging
+cd /opt/expentra-staging/compose
+export IMAGE_NAME="$(grep '^IMAGE_NAME=' ../env/.env.staging | cut -d= -f2- | tr -d '\r')"
+printf 'IMAGE_NAME=%s\n' "$IMAGE_NAME" > .env
+docker compose -f docker-compose.yml -f docker-compose.staging.yml up -d --force-recreate postgres api worker
+
+# Production
+cd /opt/expentra-production/compose
+export IMAGE_NAME="$(grep '^IMAGE_NAME=' ../env/.env.production | cut -d= -f2- | tr -d '\r')"
+printf 'IMAGE_NAME=%s\n' "$IMAGE_NAME" > .env
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --force-recreate postgres api worker
+```
+
+Confirm on the VPS: `ss -lntp | grep 5432` should show `127.0.0.1:5432`, not `0.0.0.0:5432`.
 
 ## Manual compose commands (on the VPS)
 

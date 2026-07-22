@@ -151,7 +151,7 @@ jobs:
           VPS_USER: ${{ secrets.VPS_USER }}
         run: |
           set -euo pipefail
-          ssh "${VPS_USER}@${VPS_HOST}" "mkdir -p '/opt/expentra-staging/compose' '/opt/expentra-staging/env' '/opt/expentra-staging/scripts'"
+          ssh "${VPS_USER}@${VPS_HOST}" "mkdir -p '/opt/expentra-staging/compose' '/opt/expentra-staging/env' '/opt/expentra-staging/scripts' '/opt/expentra-staging/certs/postgres'"
           rsync -az --delete \
             deploy/compose/ \
             "${VPS_USER}@${VPS_HOST}:/opt/expentra-staging/compose/"
