@@ -133,15 +133,20 @@ jobs:
             > ~/.ssh/config
           chmod 600 ~/.ssh/config
 
-      - name: Capture previous IMAGE_NAME for rollback
+      - name: Capture previous running image
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
         run: |
+          set -euo pipefail
           PREV="$(ssh "${VPS_USER}@${VPS_HOST}" \
-            "grep -E '^IMAGE_NAME=' '/opt/expentra-production/env/${ENV_FILE}' 2>/dev/null | cut -d= -f2- || true")"
+            "docker inspect -f '{{.Config.Image}}' expentra-api 2>/dev/null || true")"
+          if [ -z "${PREV}" ]; then
+            PREV="$(ssh "${VPS_USER}@${VPS_HOST}" \
+              "grep -E '^IMAGE_NAME=' '/opt/expentra-production/env/${ENV_FILE}' 2>/dev/null | cut -d= -f2- || true")"
+          fi
           printf '%s\n' "${PREV}" > /tmp/expentra.prev-image
-          echo "Previous IMAGE_NAME=${PREV:-<none>}"
+          echo "Previous running IMAGE_NAME=${PREV:-<none>}"
 
       - name: Sync deploy files and env to VPS
         env:
@@ -150,7 +155,7 @@ jobs:
         run: |
           set -euo pipefail
           ssh "${VPS_USER}@${VPS_HOST}" "mkdir -p '/opt/expentra-production/compose' '/opt/expentra-production/env' '/opt/expentra-production/scripts' '/opt/expentra-production/certs/postgres'"
-          rsync -az --delete \
+          rsync -az --delete --exclude .env \
             deploy/compose/ \
             "${VPS_USER}@${VPS_HOST}:/opt/expentra-production/compose/"
           rsync -az --delete \
@@ -166,7 +171,7 @@ jobs:
           ssh "${VPS_USER}@${VPS_HOST}" \
             "chmod 600 '/opt/expentra-production/env/${ENV_FILE}' '/opt/expentra-production/env/.image-name'"
 
-      - name: Pull, migrate, restart, verify health (rollback on failure)
+      - name: Pull, migrate, restart, verify health
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
@@ -191,6 +196,7 @@ jobs:
           ENV_PATH="../env/${ENV_FILE}"
           IMAGE_FILE="../env/.image-name"
           PREV_FILE="../env/.image-name.prev"
+          CERT_DIR="../certs/postgres"
 
           if [ ! -s "${IMAGE_FILE}" ]; then
             echo "::error::Missing ${IMAGE_FILE} — sync step did not write the new image name"
@@ -217,7 +223,16 @@ jobs:
 
           echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
 
-          # Interpolate ${IMAGE_NAME} from shell + compose/.env only (not full app --env-file).
+          mkdir -p "${CERT_DIR}"
+          if [ ! -s "${CERT_DIR}/server.crt" ] || [ ! -s "${CERT_DIR}/server.key" ] || [ ! -s "${CERT_DIR}/ca.crt" ]; then
+            echo "Postgres TLS certs missing — generating..."
+            sh "../scripts/postgres-tls/generate-certs.sh" "${CERT_DIR}"
+          fi
+          docker run --rm \
+            -v "$(CDPATH= cd -- "${CERT_DIR}" && pwd):/certs" \
+            alpine:3.20 \
+            sh -c 'chown -R 70:70 /certs && chmod 600 /certs/server.key /certs/ca.key && chmod 644 /certs/server.crt /certs/ca.crt'
+
           export IMAGE_NAME="${NEW_IMAGE}"
           grep -vE '^IMAGE_NAME=' "${ENV_PATH}" > "${ENV_PATH}.tmp" || true
           printf 'IMAGE_NAME=%s\n' "${IMAGE_NAME}" >> "${ENV_PATH}.tmp"
@@ -226,16 +241,6 @@ jobs:
           chmod 600 .env "${ENV_PATH}"
 
           COMPOSE=(docker compose -f docker-compose.yml -f "${COMPOSE_OVERRIDE}")
-
-          set_image() {
-            local image="$1"
-            export IMAGE_NAME="${image}"
-            grep -vE '^IMAGE_NAME=' "${ENV_PATH}" > "${ENV_PATH}.tmp" || true
-            printf 'IMAGE_NAME=%s\n' "${image}" >> "${ENV_PATH}.tmp"
-            mv "${ENV_PATH}.tmp" "${ENV_PATH}"
-            printf 'IMAGE_NAME=%s\n' "${image}" > .env
-            printf '%s\n' "${image}" > "${IMAGE_FILE}"
-          }
 
           assert_compose_image() {
             local expected="$1"
@@ -249,22 +254,14 @@ jobs:
             fi
           }
 
-          rollback_app() {
+          fail_keep_new() {
             local reason="$1"
             echo "::error::${reason}"
-            "${COMPOSE[@]}" logs --tail=100 api worker migrate || true
-            if [ -z "${PREVIOUS_IMAGE}" ] || [ "${PREVIOUS_IMAGE}" = "${NEW_IMAGE}" ]; then
-              echo "::error::No previous IMAGE_NAME available for automatic rollback"
-              return 1
-            fi
-            echo "Rolling back application image to ${PREVIOUS_IMAGE} ..."
-            set_image "${PREVIOUS_IMAGE}"
-            assert_compose_image "${PREVIOUS_IMAGE}"
-            "${COMPOSE[@]}" pull api worker
-            docker rm -f expentra-api expentra-worker 2>/dev/null || true
-            "${COMPOSE[@]}" up -d --force-recreate --remove-orphans --wait --wait-timeout 120 api worker postgres-backup
-            echo "Rollback complete (schema migrations are not reverted automatically)."
-            return 1
+            echo "::error::Keeping attempted image ${NEW_IMAGE} (no auto-rollback)."
+            echo "Previous was: ${PREVIOUS_IMAGE:-<none>}"
+            "${COMPOSE[@]}" logs --tail=100 api worker migrate postgres || true
+            docker ps -a --filter name=expentra --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}' || true
+            exit 1
           }
 
           verify_ready() {
@@ -288,29 +285,27 @@ jobs:
 
           echo "Using IMAGE_NAME=${IMAGE_NAME}"
           echo "Previous IMAGE_NAME=${PREVIOUS_IMAGE:-<none>}"
-          grep -E '^IMAGE_NAME=' "${ENV_PATH}" || true
           assert_compose_image "${NEW_IMAGE}"
 
+          echo "Pulling ${NEW_IMAGE} ..."
+          docker pull "${NEW_IMAGE}"
           "${COMPOSE[@]}" pull api worker migrate
 
           "${COMPOSE[@]}" up -d postgres redis
           "${COMPOSE[@]}" up -d --wait --wait-timeout 90 postgres redis
 
           if ! "${COMPOSE[@]}" run --rm migrate; then
-            rollback_app "Database migration failed"
-            exit 1
+            fail_keep_new "Database migration failed"
           fi
 
           docker rm -f expentra-api expentra-worker 2>/dev/null || true
 
-          if ! "${COMPOSE[@]}" up -d --force-recreate --pull always --remove-orphans --wait --wait-timeout 120 api worker postgres-backup; then
-            rollback_app "Failed to start api/worker"
-            exit 1
+          if ! IMAGE_NAME="${NEW_IMAGE}" "${COMPOSE[@]}" up -d --force-recreate --pull always --remove-orphans --wait --wait-timeout 120 api worker postgres-backup; then
+            fail_keep_new "Failed to start api/worker"
           fi
 
           if ! verify_ready; then
-            rollback_app "Post-deploy HTTP health check failed (${HEALTH_READY_URL})"
-            exit 1
+            fail_keep_new "Post-deploy HTTP health check failed (${HEALTH_READY_URL})"
           fi
 
           echo "Running containers:"

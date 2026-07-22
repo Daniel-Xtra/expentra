@@ -61,7 +61,7 @@ Use the **same secret names** in both environments:
 
 CI writes one file (`env/.env.production` or `env/.env.staging`), upserts `IMAGE_NAME` to the image just pushed, and also writes `env/.image-name` (read on the VPS so the image is never passed through secret-redacted SSH env). Compose gets a tiny `compose/.env` containing only `IMAGE_NAME` for interpolation. After start, deploy fails if `docker inspect` does not show the new `sha-<commit>` tag.
 
-If migrate/start/health fails, deploy **rolls back** to the previous `IMAGE_NAME` — that is why the VPS can stay on an older `sha-…` after a “failed” deploy. Check the Actions log for `Rolling back application image`.
+If migrate/start/health fails, the job **fails without auto-rollback** and keeps the attempted `sha-<commit>` (so the VPS is not silently left on an older image). Check Actions logs for `Keeping attempted image`. Fix the root cause (often missing Postgres TLS certs, now auto-generated on deploy if absent) and redeploy.
 
 **Important:** A Docker Hub Autobuild success is not a VPS deploy. Only the GitHub Actions **Deploy Staging** / **Deploy Production** jobs update `/opt/expentra-*/env` and recreate containers. Prefer `DOCKERHUB_IMAGE` as an Environment **variable** (not a secret) so image names are not redacted in Actions.
 
