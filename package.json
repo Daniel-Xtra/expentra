@@ -5,6 +5,7 @@
   "author": "Daniel Akanbi",
   "private": true,
   "license": "UNLICENSED",
+  "packageManager": "pnpm@9.15.9",
   "scripts": {
     "generate:postman": "ts-node scripts/generate_postman_collection.ts",
     "build": "nest build && tsc-alias -p tsconfig.build.json",
