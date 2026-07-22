@@ -8,6 +8,23 @@ services:
   postgres:
     env_file:
       - ../env/.env.production
+    ports:
+      # Loopback only — TablePlus/pgAdmin via SSH tunnel. Never 0.0.0.0.
+      - "127.0.0.1:5432:5432"
+    volumes:
+      # Generate once: deploy/scripts/postgres-tls/generate-certs.sh /opt/expentra-production/certs/postgres
+      - ../certs/postgres:/var/lib/postgresql/certs:ro
+    # ssl=on offered but not hostssl-forced — TablePlus PREFERRED and backups still work.
+    command:
+      - postgres
+      - -c
+      - ssl=on
+      - -c
+      - ssl_cert_file=/var/lib/postgresql/certs/server.crt
+      - -c
+      - ssl_key_file=/var/lib/postgresql/certs/server.key
+      - -c
+      - ssl_ca_file=/var/lib/postgresql/certs/ca.crt
 
   postgres-backup:
     env_file:
@@ -29,6 +46,8 @@ services:
       APP_ROLE: api
       RUN_MIGRATIONS: "false"
       RUN_SEED: "false"
+    volumes:
+      - ../certs/postgres/ca.crt:/certs/postgres/ca.crt:ro
     expose:
       - "3200"
     depends_on:
@@ -63,6 +82,8 @@ services:
       APP_ROLE: migrate
       RUN_MIGRATIONS: "true"
       RUN_SEED: "false"
+    volumes:
+      - ../certs/postgres/ca.crt:/certs/postgres/ca.crt:ro
     entrypoint: ["/usr/bin/tini", "--", "sh", "/app/scripts/docker-migrate.sh"]
     depends_on:
       postgres:
@@ -84,6 +105,8 @@ services:
       APP_ROLE: worker
       RUN_MIGRATIONS: "false"
       RUN_SEED: "false"
+    volumes:
+      - ../certs/postgres/ca.crt:/certs/postgres/ca.crt:ro
     depends_on:
       postgres:
         condition: service_healthy

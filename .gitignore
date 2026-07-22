@@ -56,3 +56,7 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 # Lockfiles / build info (pnpm is the package manager)
 package-lock.json
 *.tsbuildinfo
+
+# Local/VPS Postgres TLS material (never commit)
+certs/
+**/certs/postgres/
