@@ -233,14 +233,34 @@ jobs:
             alpine:3.20 \
             sh -c 'chown -R 70:70 /certs && chmod 600 /certs/server.key /certs/ca.key && chmod 644 /certs/server.crt /certs/ca.crt'
 
-          export IMAGE_NAME="${NEW_IMAGE}"
-          grep -vE '^IMAGE_NAME=' "${ENV_PATH}" > "${ENV_PATH}.tmp" || true
-          printf 'IMAGE_NAME=%s\n' "${IMAGE_NAME}" >> "${ENV_PATH}.tmp"
-          mv "${ENV_PATH}.tmp" "${ENV_PATH}"
-          printf 'IMAGE_NAME=%s\n' "${IMAGE_NAME}" > .env
-          chmod 600 .env "${ENV_PATH}"
-
           COMPOSE=(docker compose -f docker-compose.yml -f "${COMPOSE_OVERRIDE}")
+
+          set_image() {
+            local image="$1"
+            export IMAGE_NAME="${image}"
+            grep -vE '^IMAGE_NAME=' "${ENV_PATH}" > "${ENV_PATH}.tmp" || true
+            printf 'IMAGE_NAME=%s\n' "${image}" >> "${ENV_PATH}.tmp"
+            mv "${ENV_PATH}.tmp" "${ENV_PATH}"
+            printf 'IMAGE_NAME=%s\n' "${image}" > .env
+            printf '%s\n' "${image}" > "${IMAGE_FILE}"
+            chmod 600 .env "${ENV_PATH}" "${IMAGE_FILE}"
+          }
+
+          running_api_image() {
+            docker inspect -f '{{.Config.Image}}' expentra-api 2>/dev/null || true
+          }
+
+          revert_env_to_running() {
+            local running
+            running="$(running_api_image)"
+            if [ -n "${running}" ]; then
+              echo "Reverting env IMAGE_NAME to running container: ${running}"
+              set_image "${running}"
+            elif [ -n "${PREVIOUS_IMAGE}" ]; then
+              echo "Reverting env IMAGE_NAME to previous: ${PREVIOUS_IMAGE}"
+              set_image "${PREVIOUS_IMAGE}"
+            fi
+          }
 
           assert_compose_image() {
             local expected="$1"
@@ -250,16 +270,42 @@ jobs:
               echo "::error::Compose did not resolve IMAGE_NAME to ${expected}"
               echo "shell IMAGE_NAME=${IMAGE_NAME:-<unset>}"
               echo "compose/.env: $(cat .env 2>/dev/null || true)"
-              exit 1
+              return 1
             fi
           }
 
-          fail_keep_new() {
+          recreate_app() {
+            local image="$1"
+            set_image "${image}"
+            assert_compose_image "${image}"
+            echo "Pulling and recreating api/worker → ${image}"
+            docker pull "${image}"
+            docker rm -f expentra-api expentra-worker 2>/dev/null || true
+            IMAGE_NAME="${image}" "${COMPOSE[@]}" pull api worker
+            IMAGE_NAME="${image}" "${COMPOSE[@]}" up -d --force-recreate --pull always --remove-orphans --wait --wait-timeout 120 api worker postgres-backup
+            local running
+            running="$(running_api_image)"
+            if [ "${running}" != "${image}" ]; then
+              echo "::error::After recreate, api is ${running:-<none>}, expected ${image}"
+              return 1
+            fi
+            echo "api/worker now running: ${running}"
+          }
+
+          fail_before_recreate() {
             local reason="$1"
             echo "::error::${reason}"
-            echo "::error::Keeping attempted image ${NEW_IMAGE} (no auto-rollback)."
-            echo "Previous was: ${PREVIOUS_IMAGE:-<none>}"
-            "${COMPOSE[@]}" logs --tail=100 api worker migrate postgres || true
+            "${COMPOSE[@]}" logs --tail=80 migrate postgres || true
+            revert_env_to_running
+            echo "Env restored to match running containers (no manual IMAGE_NAME fix needed)."
+            exit 1
+          }
+
+          fail_after_recreate() {
+            local reason="$1"
+            echo "::error::${reason}"
+            echo "::error::api/worker already on ${NEW_IMAGE} — not rolling back."
+            "${COMPOSE[@]}" logs --tail=100 api worker || true
             docker ps -a --filter name=expentra --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}' || true
             exit 1
           }
@@ -283,37 +329,35 @@ jobs:
             return 1
           }
 
-          echo "Using IMAGE_NAME=${IMAGE_NAME}"
+          echo "Target IMAGE_NAME=${NEW_IMAGE}"
           echo "Previous IMAGE_NAME=${PREVIOUS_IMAGE:-<none>}"
-          assert_compose_image "${NEW_IMAGE}"
+          echo "Currently running: $(running_api_image)"
+
+          set_image "${NEW_IMAGE}"
+          assert_compose_image "${NEW_IMAGE}" || fail_before_recreate "Compose image interpolation failed"
 
           echo "Pulling ${NEW_IMAGE} ..."
           docker pull "${NEW_IMAGE}"
-          "${COMPOSE[@]}" pull api worker migrate
+          "${COMPOSE[@]}" pull migrate
 
           "${COMPOSE[@]}" up -d postgres redis
-          "${COMPOSE[@]}" up -d --wait --wait-timeout 90 postgres redis
-
-          if ! "${COMPOSE[@]}" run --rm migrate; then
-            fail_keep_new "Database migration failed"
+          if ! "${COMPOSE[@]}" up -d --wait --wait-timeout 90 postgres redis; then
+            fail_before_recreate "Postgres/Redis failed to become healthy"
           fi
 
-          docker rm -f expentra-api expentra-worker 2>/dev/null || true
+          if ! "${COMPOSE[@]}" run --rm migrate; then
+            fail_before_recreate "Database migration failed"
+          fi
 
-          if ! IMAGE_NAME="${NEW_IMAGE}" "${COMPOSE[@]}" up -d --force-recreate --pull always --remove-orphans --wait --wait-timeout 120 api worker postgres-backup; then
-            fail_keep_new "Failed to start api/worker"
+          if ! recreate_app "${NEW_IMAGE}"; then
+            fail_after_recreate "Failed to recreate api/worker on ${NEW_IMAGE}"
           fi
 
           if ! verify_ready; then
-            fail_keep_new "Post-deploy HTTP health check failed (${HEALTH_READY_URL})"
+            fail_after_recreate "Post-deploy HTTP health check failed (${HEALTH_READY_URL})"
           fi
 
           echo "Running containers:"
           docker ps --filter name=expentra-api --filter name=expentra-worker --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}'
-          RUNNING_IMAGE="$(docker inspect -f '{{.Config.Image}}' expentra-api)"
-          if [ "${RUNNING_IMAGE}" != "${NEW_IMAGE}" ]; then
-            echo "::error::Container still on ${RUNNING_IMAGE}, expected ${NEW_IMAGE}"
-            exit 1
-          fi
           echo "Production deploy OK — image=${NEW_IMAGE}"
           REMOTE
