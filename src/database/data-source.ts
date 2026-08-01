@@ -3,8 +3,6 @@ import path from 'path';
 import { DataSource } from 'typeorm';
 import * as fs from 'fs';
 
-const sourceExt = __filename.endsWith('.ts') ? 'ts' : 'js';
-
 function buildPostgresSsl():
   | false
   | {
@@ -39,8 +37,8 @@ const AppDataSource = new DataSource({
   synchronize: false,
   migrationsTableName: 'migrations',
   migrationsTransactionMode: 'each',
-  entities: [path.join(__dirname, 'entities', `**/*.entity.${sourceExt}`)],
-  migrations: [path.join(__dirname, 'migrations', `*.${sourceExt}`)],
+  entities: [path.join(__dirname, 'entities', '**/*.entity.js')],
+  migrations: [path.join(__dirname, 'migrations', '*.js')],
   extra: {
     ssl: buildPostgresSsl(),
   },

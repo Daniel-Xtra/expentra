@@ -53,7 +53,32 @@ $ pnpm run start
 $ pnpm run start:worker
 ```
 
-With Docker Compose, start both `api` and `worker` services. The worker uses `command: node dist/worker.js` and `RUN_MIGRATIONS=false`.
+### Docker Compose (production-parity local)
+
+Requires [`.env.development`](.env.development) (start from [`.env.example`](.env.example)). **All secrets** (`POSTGRES_PASSWORD`, `JWT_SECRET`, etc.) are loaded from that file via Compose `env_file` — nothing secret is hardcoded in `docker-compose.yml`. Compose only overrides connection topology (`POSTGRES_HOST=postgres`, `REDIS_URL=redis://redis:6379`, `POSTGRES_SSL=false`).
+
+```bash
+# Build runtime image and start postgres, redis, api, worker
+# (also prunes dangling images left by the rebuild)
+$ pnpm compose:up
+
+# Follow api/worker logs
+$ pnpm compose:logs
+
+# Stop stack (volumes kept)
+$ pnpm compose:down
+
+# Extra cleanup: dangling images + unused build cache
+$ pnpm compose:prune
+```
+
+| Service | URL / port |
+|---------|------------|
+| API | `http://localhost:3200` |
+| Postgres | `localhost:5432` |
+| Redis | `localhost:6379` |
+
+The **api** container runs migrations on startup (`RUN_MIGRATIONS=true` via the Docker entrypoint). The **worker** does not (`RUN_MIGRATIONS=false`).
 
 ## Run tests
 
@@ -72,19 +97,11 @@ $ pnpm run test:cov
 
 | Branch | Purpose |
 |--------|---------|
-| `feature/*` | Feature work — no long-lived deploy |
+| `feature/*` | Feature work |
 | `staging` | Integration / staging |
 | `main` | Production |
 
 Merge path: feature branch → `staging` (PR) → `main` (PR) when promoting to production.
-
-## Deployment
-
-See **[DEPLOYMENT.md](DEPLOYMENT.md)** for VPS + GitHub Actions deploy:
-
-- CI on PRs into `staging` / `main` (not again on merge push)
-- Separate CD workflows: **Deploy Staging** and **Deploy Production**
-- Required secrets, env encoding, and rollback
 
 ## Resources
 
