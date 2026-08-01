@@ -33,7 +33,15 @@ esac
 
 timeout="${DATABASE_WAIT_TIMEOUT:-60}"
 log "Waiting for PostgreSQL at ${POSTGRES_HOST}:${POSTGRES_PORT}..."
-while ! pg_isready -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" >/dev/null 2>&1; do
+while ! node -e "
+  const net = require('net');
+  const s = net.connect(
+    { host: process.env.POSTGRES_HOST, port: Number(process.env.POSTGRES_PORT) },
+    () => { s.end(); process.exit(0); },
+  );
+  s.on('error', () => process.exit(1));
+  setTimeout(() => process.exit(1), 2000);
+" >/dev/null 2>&1; do
     timeout=$((timeout - 2))
     if [ "$timeout" -le 0 ]; then
         error "Timed out waiting for PostgreSQL."

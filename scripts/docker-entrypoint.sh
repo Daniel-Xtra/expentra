@@ -88,7 +88,7 @@ assert_docker_database_host() {
 }
 
 # -----------------------------------------------------------------------------
-# Wait for PostgreSQL
+# Wait for PostgreSQL (TCP — no postgresql-client in the image)
 # -----------------------------------------------------------------------------
 
 wait_for_postgres() {
@@ -97,11 +97,15 @@ wait_for_postgres() {
 
     log "Waiting for PostgreSQL..."
 
-    while ! pg_isready \
-        -h "$POSTGRES_HOST" \
-        -p "$POSTGRES_PORT" \
-        -U "$POSTGRES_USER" \
-        >/dev/null 2>&1
+    while ! node -e "
+      const net = require('net');
+      const s = net.connect(
+        { host: process.env.POSTGRES_HOST, port: Number(process.env.POSTGRES_PORT) },
+        () => { s.end(); process.exit(0); },
+      );
+      s.on('error', () => process.exit(1));
+      setTimeout(() => process.exit(1), 2000);
+    " >/dev/null 2>&1
     do
         timeout=$((timeout - 2))
 
@@ -117,7 +121,7 @@ wait_for_postgres() {
 }
 
 # -----------------------------------------------------------------------------
-# Wait for Redis
+# Wait for Redis (TCP — no redis-tools in the image)
 # -----------------------------------------------------------------------------
 
 wait_for_redis() {
@@ -126,10 +130,15 @@ wait_for_redis() {
 
     log "Waiting for Redis..."
 
-    while ! redis-cli \
-        -h "$REDIS_HOST" \
-        -p "$REDIS_PORT" \
-        ping >/dev/null 2>&1
+    while ! node -e "
+      const net = require('net');
+      const s = net.connect(
+        { host: process.env.REDIS_HOST, port: Number(process.env.REDIS_PORT) },
+        () => { s.end(); process.exit(0); },
+      );
+      s.on('error', () => process.exit(1));
+      setTimeout(() => process.exit(1), 2000);
+    " >/dev/null 2>&1
     do
         timeout=$((timeout - 2))
 
