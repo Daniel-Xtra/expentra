@@ -57,10 +57,13 @@ export class AuthController {
   }
 
   private cookieOptions() {
+    const isProd = process.env.NODE_ENV === 'production';
+    const crossSite = process.env.COOKIE_SAMESITE === 'none'; 
+
     return {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax' as const,
+      secure: isProd || crossSite, 
+      sameSite: (crossSite ? 'none' : 'lax') as 'none' | 'lax',
       path: '/',
     };
   }
@@ -106,7 +109,6 @@ export class AuthController {
     if (!isSuspended) {
       url.searchParams.set('ssoError', message);
     }
-    // Avoid leaving a half-issued session if a cookie was already set.
     this.clearRefreshTokenCookie(res);
     return res.redirect(url.toString());
   }
@@ -185,10 +187,6 @@ export class AuthController {
         error,
         errorDescription,
       });
-      // Do not set the refresh cookie here. Hosts share cookies by hostname
-      // (not port), so a cookie from the API callback can race with SPA
-      // exchange + premature refresh and leave a revoked refresh token.
-      // The refresh cookie is set only on POST /auth/sso/exchange.
       const url = new URL('/auth/sso/callback', this.appUrl());
       url.searchParams.set('code', result.exchangeCode);
       res.redirect(url.toString());
