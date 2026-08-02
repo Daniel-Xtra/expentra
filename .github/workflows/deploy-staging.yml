@@ -1,4 +1,4 @@
-# Build app image, push to Docker Hub, deploy staging on the VPS via SSH.
+# Build app image, push to Docker Hub, then deploy staging on the VPS via SSH.
 name: Deploy staging
 
 on:
@@ -14,10 +14,10 @@ env:
   IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/expentra
 
 jobs:
-  build-and-deploy:
-    name: Build, push, deploy
+  build-and-push-image:
+    name: Build and push image
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 30
 
     steps:
       - name: Checkout
@@ -45,6 +45,13 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  deploy-to-vps:
+    name: Deploy to VPS
+    needs: build-and-push-image
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1.2.0
         with:
