@@ -23,11 +23,18 @@
 
 ## Description
 
-NestJS API for Expentra — internal expense management (PostgreSQL, Redis, JWT).
+NestJS API for **Expentra** — internal expense management (PostgreSQL, Redis, JWT, BullMQ worker).
 
 Run all commands from this directory. The React frontend lives in the sibling [`../expentra-web`](../expentra-web) project.
 
-**API docs:** [POST endpoint payload samples](./docs/api-post-payloads.md) — request body examples for every `POST` route.
+### Documentation
+
+| Doc | Audience |
+|-----|----------|
+| **[Architecture documentation](./docs/architecture/README.md)** | System design, domains, API surface, security, async, data, ops |
+| [VPS deploy guide](./docs/vps-deploy-guide.md) | Staging/production infrastructure runbook |
+
+OpenAPI/Swagger can be enabled at runtime (`SWAGGER_ENABLED`); optional Postman generation via `pnpm generate:postman`.
 
 ## Project setup
 
@@ -72,11 +79,7 @@ $ pnpm compose:down
 $ pnpm compose:prune
 ```
 
-| Service | URL / port |
-|---------|------------|
-| API | `http://localhost:3200` |
-| Postgres | `localhost:5432` |
-| Redis | `localhost:6379` |
+Service ports and host URLs come from your env / compose config (see `.env.example` and `docker-compose.yml`).
 
 The **api** container runs migrations on startup (`RUN_MIGRATIONS=true` via the Docker entrypoint). The **worker** does not (`RUN_MIGRATIONS=false`).
 

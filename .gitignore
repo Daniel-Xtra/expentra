@@ -2,7 +2,9 @@
 /dist
 /node_modules
 /build
-/docs
+# Docs: keep architecture in git; omit ops runbooks / local notes under docs/
+/docs/*
+!/docs/architecture/
 /scripts/generate_postman_collection.ts
 
 # Logs
