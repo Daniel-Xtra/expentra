@@ -1,12 +1,4 @@
-# Expentra local stack — production-parity (runtime image).
-# Secrets (JWT, DB password, etc.) come ONLY from env_file (.env.development).
-# The `environment:` block sets Docker network topology only — never secrets.
-# Usage: pnpm compose:up
-#
-# VPS staging (Hub image, hardened ports): compose.staging.yml
-#   docker compose -f compose.staging.yml up -d
-
-name: expentra
+name: expentra-staging
 
 x-logging: &default-logging
   driver: json-file
@@ -14,19 +6,12 @@ x-logging: &default-logging
     max-size: "10m"
     max-file: "5"
 
-# Shared app container settings. Secrets: env_file. Topology: environment.
 x-app: &app
-  image: expentra:local
-  pull_policy: build
-  build:
-    context: .
-    dockerfile: Dockerfile
-    target: runtime
+  image: ${IMAGE_NAME}
+  pull_policy: always
   env_file:
-    - .env.development
+    - .env
   environment: &app-env
-    # Non-secret overrides so containers reach compose service DNS names.
-    # POSTGRES_USER / POSTGRES_PASSWORD / POSTGRES_DB / JWT_* stay in env_file.
     PORT: "3200"
     POSTGRES_HOST: postgres
     POSTGRES_SSL: "false"
@@ -49,16 +34,15 @@ volumes:
 services:
   postgres:
     image: postgres:15-alpine
-    container_name: expentra-postgres
+    container_name: expentra-staging-postgres
     restart: unless-stopped
     logging: *default-logging
-    # Reads POSTGRES_USER / POSTGRES_PASSWORD / POSTGRES_DB from env file
     env_file:
-      - .env.development
+      - .env
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5433:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
@@ -69,14 +53,14 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: expentra-redis
+    container_name: expentra-staging-redis
     restart: unless-stopped
     logging: *default-logging
     command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6380:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -87,7 +71,7 @@ services:
 
   api:
     <<: *app
-    container_name: expentra-api
+    container_name: expentra-staging-api
     restart: unless-stopped
     stop_grace_period: 30s
     environment:
@@ -96,7 +80,7 @@ services:
       RUN_MIGRATIONS: "true"
       RUN_SEED: "false"
     ports:
-      - "3200:3200"
+      - "127.0.0.1:3201:3200"
     depends_on:
       postgres:
         condition: service_healthy
@@ -117,7 +101,7 @@ services:
 
   worker:
     <<: *app
-    container_name: expentra-worker
+    container_name: expentra-staging-worker
     restart: unless-stopped
     stop_grace_period: 30s
     command: ["node", "dist/worker.js"]
